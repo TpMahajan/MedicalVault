@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "317600481828",
+    "project_id": "healthvault-a9e08",
+    "storage_bucket": "healthvault-a9e08.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:317600481828:android:5a336043158c456fbf4eb1",
+        "android_client_info": {
+          "package_name": "com.example.hello"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbZxsC9EYEfDR8bOZldkIovRkjl2tZ9Ac"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
