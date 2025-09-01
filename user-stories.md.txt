@@ -1,0 +1,24 @@
+# Health Vault – User Stories
+
+## Epic: Authentication & Access
+- As a **user**, I want to **sign up using email/password**, so that I can create a secure account.
+- As a **user**, I want to **log in with my credentials**, so that I can access my health vault.
+- As a **user**, I want to **reset my password**, so that I can recover access if I forget it.
+
+## Epic: Vault Access
+- As a **user**, I want to **see my personal health vault dashboard**, so that I can view all my uploaded health documents in one place.
+- As a **user**, I want to **search inside my vault**, so that I can quickly find specific records.
+
+## Epic: Document Management
+- As a **user**, I want to **upload health-related documents** (reports, prescriptions, etc.), so that I can store them digitally.
+- As a **user**, I want to **download my uploaded documents**, so that I can share them offline when needed.
+- As a **user**, I want to **delete or update documents**, so that I can manage my vault effectively.
+
+## Epic: Settings & Privacy
+- As a **user**, I want to **manage my profile (name, email, phone, Aadhaar, DOB)**, so that my vault remains up to date.
+- As a **user**, I want to **read Privacy Policy, Terms of Service, FAQs**, so that I understand how my data is handled.
+- As a **user**, I want to **contact support**, so that I can resolve issues.
+
+## Epic: Security
+- As a **user**, I want to **log out securely**, so that no one else can access my account from my device.
+- As a **user**, I want to **use OTP/2FA login (future scope)**, so that I feel extra safe.
