@@ -6,12 +6,19 @@ import 'MyVault.dart';
 import 'QR.dart';
 import 'Requests.dart';
 import 'Settings.dart';
+<<<<<<< HEAD
 import 'dbHelper/mongodb.dart';
+=======
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 
 class Dashboard1 extends StatefulWidget {
   final Map<String, dynamic> userData; // 👈 MongoDB login/signup data
 
+<<<<<<< HEAD
   const Dashboard1({super.key, required this.userData});
+=======
+  const Dashboard1({super.key, required this.userData, required userEmail});
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 
   @override
   State<Dashboard1> createState() => _Dashboard1State();
@@ -22,14 +29,20 @@ class _Dashboard1State extends State<Dashboard1> {
   int _currentIndex = 0;
   final tabs = ["Dashboard", "My Vault", "QR", "Requests", "Settings"];
   late PageController _pageController;
+<<<<<<< HEAD
   Map<String, int> _documentCounts = {};
   bool _isLoadingCounts = true;
+=======
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentIndex);
+<<<<<<< HEAD
     _loadDocumentCounts();
+=======
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
   }
 
   @override
@@ -38,6 +51,7 @@ class _Dashboard1State extends State<Dashboard1> {
     super.dispose();
   }
 
+<<<<<<< HEAD
   Future<void> _loadDocumentCounts() async {
     try {
       final counts = await MongoDataBase.getDocumentCountByCategory(
@@ -54,6 +68,8 @@ class _Dashboard1State extends State<Dashboard1> {
     }
   }
 
+=======
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
   @override
   Widget build(BuildContext context) {
     final userName = widget.userData['name'] ?? "Patient";
@@ -129,6 +145,7 @@ class _Dashboard1State extends State<Dashboard1> {
                 },
               ),
               const SizedBox(height: 24),
+<<<<<<< HEAD
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -146,10 +163,16 @@ class _Dashboard1State extends State<Dashboard1> {
                       ),
                     ),
                 ],
+=======
+              const Text(
+                'My Documents',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
               ),
               const SizedBox(height: 16),
 
               // 📂 Category Grid
+<<<<<<< HEAD
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -199,11 +222,51 @@ class _Dashboard1State extends State<Dashboard1> {
                 },
               )
 
+=======
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1.2,
+                children: [
+                  _buildCategoryCard(
+                    context,
+                    title: "Reports",
+                    imagePath: "assets/Reports.png",
+                    category: "Reports",
+                  ),
+                  _buildCategoryCard(
+                    context,
+                    title: "Prescriptions",
+                    imagePath: "assets/Prescription.png",
+                    category: "Prescription",
+                  ),
+                  _buildCategoryCard(
+                    context,
+                    title: "Bills",
+                    imagePath: "assets/2851468.png",
+                    category: "Bills",
+                  ),
+                  _buildCategoryCard(
+                    context,
+                    title: "Insurance Details",
+                    imagePath: "assets/Insurance12.png",
+                    category: "Insurance",
+                  ),
+                ],
+              ),
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
             ],
           ),
 
           // 🔐 Vault tab
+<<<<<<< HEAD
           MyVault(userEmail: widget.userData["email"]),
+=======
+          MyVault(),
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 
           // QR tab
           QRPage(),
@@ -212,7 +275,11 @@ class _Dashboard1State extends State<Dashboard1> {
           RequestsPage(),
 
           // Settings tab
+<<<<<<< HEAD
           SettingsPage(userData: widget.userData),
+=======
+          SettingsPage(),
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
         ],
       ),
 
@@ -267,18 +334,27 @@ class _Dashboard1State extends State<Dashboard1> {
   /// 🔹 Reusable card builder
   Widget _buildCategoryCard(BuildContext context,
       {required String title,
+<<<<<<< HEAD
       required String imagePath,
       required String category,
       required int count}) {
+=======
+        required String imagePath,
+        required String category}) {
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
+<<<<<<< HEAD
             builder: (context) => CategoryVaultPage(
               category: category,
               userEmail: widget.userData["email"],
             ),
+=======
+            builder: (context) => CategoryVaultPage(category: category),
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
           ),
         );
       },
@@ -295,6 +371,7 @@ class _Dashboard1State extends State<Dashboard1> {
             ),
             const SizedBox(height: 8),
             Text(title, style: const TextStyle(color: Colors.blueGrey)),
+<<<<<<< HEAD
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -311,6 +388,8 @@ class _Dashboard1State extends State<Dashboard1> {
                 ),
               ),
             ),
+=======
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
           ],
         ),
       ),

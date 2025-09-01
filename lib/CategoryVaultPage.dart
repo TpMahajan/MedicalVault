@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
+<<<<<<< HEAD
 import 'dbHelper/mongodb.dart';
 
 class CategoryVaultPage extends StatefulWidget {
@@ -8,14 +9,25 @@ class CategoryVaultPage extends StatefulWidget {
 
   const CategoryVaultPage(
       {super.key, required this.category, required this.userEmail});
+=======
+
+class CategoryVaultPage extends StatefulWidget {
+  final String category; // Reports, Prescriptions, Bills, Insurance
+
+  const CategoryVaultPage({super.key, required this.category});
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 
   @override
   State<CategoryVaultPage> createState() => _CategoryVaultPageState();
 }
 
 class _CategoryVaultPageState extends State<CategoryVaultPage> {
+<<<<<<< HEAD
   List<Map<String, dynamic>> files = []; // Documents from MongoDB
   bool _isLoading = true;
+=======
+  List<Map<String, dynamic>> files = []; // 👈 load from DB or storage
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 
   @override
   void initState() {
@@ -24,6 +36,7 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
   }
 
   Future<void> _loadFiles() async {
+<<<<<<< HEAD
     setState(() {
       _isLoading = true;
     });
@@ -75,6 +88,25 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         SnackBar(content: Text("Error deleting document: $e")),
       );
     }
+=======
+    // 🔥 Replace with MongoDB/Local DB fetch filtering by category
+    // Example structure: { 'name': 'report1.pdf', 'path': '/storage/emulated/...', 'category': 'Reports' }
+
+    // Dummy Example:
+    setState(() {
+      files = [
+        {'name': 'Blood_Test_Report.pdf', 'path': '/storage/reports/blood.pdf', 'category': 'Reports'},
+        {'name': 'Xray.png', 'path': '/storage/reports/xray.png', 'category': 'Reports'},
+      ].where((file) => file['category'] == widget.category).toList();
+    });
+  }
+
+  void _deleteFile(int index) {
+    // Delete from DB/local storage also
+    setState(() {
+      files.removeAt(index);
+    });
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
   }
 
   void _openFile(String path) {
@@ -88,6 +120,7 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         title: Text("${widget.category}"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
+<<<<<<< HEAD
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -170,4 +203,29 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
       return 'Unknown date';
     }
   }
+=======
+      ),
+      body: files.isEmpty
+          ? const Center(child: Text("No documents uploaded yet"))
+          : ListView.builder(
+        itemCount: files.length,
+        itemBuilder: (context, index) {
+          final file = files[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: ListTile(
+              leading: const Icon(Icons.description, color: Colors.blue),
+              title: Text(file['name']),
+              onTap: () => _openFile(file['path']),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () => _deleteFile(index),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 }

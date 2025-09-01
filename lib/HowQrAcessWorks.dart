@@ -81,7 +81,11 @@ class QrAccessWorks extends StatelessWidget {
               style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
+<<<<<<< HEAD
                   color: Colors.blue),
+=======
+                  color: Colors.blueAccent),
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
             ),
           ],
         ),

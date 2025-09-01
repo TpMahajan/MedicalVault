@@ -4,12 +4,18 @@ import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'MyVault.dart';
 import 'document_model.dart';
+<<<<<<< HEAD
 import 'dbHelper/mongodb.dart';
 
 class UploadDocument extends StatefulWidget {
   final String userEmail;
 
   const UploadDocument({super.key, required this.userEmail});
+=======
+
+class UploadDocument extends StatefulWidget {
+  const UploadDocument({super.key});
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 
   @override
   State<UploadDocument> createState() => _UploadDocumentState();
@@ -18,10 +24,14 @@ class UploadDocument extends StatefulWidget {
 class _UploadDocumentState extends State<UploadDocument> {
   File? _selectedFile;
   String? _selectedCategory;
+<<<<<<< HEAD
   DateTime? _selectedDate;
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
   bool _isUploading = false;
+=======
+  final TextEditingController _titleController = TextEditingController();
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 
   Future<void> _pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles();
@@ -32,6 +42,7 @@ class _UploadDocumentState extends State<UploadDocument> {
     }
   }
 
+<<<<<<< HEAD
   Future<void> _pickDate() async {
     final pickedDate = await showDatePicker(
       context: context,
@@ -47,6 +58,9 @@ class _UploadDocumentState extends State<UploadDocument> {
   }
 
   Future<void> _saveDocument() async {
+=======
+  void _saveDocument() {
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
     if (_selectedFile == null || _selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please select file & category")),
@@ -54,6 +68,7 @@ class _UploadDocumentState extends State<UploadDocument> {
       return;
     }
 
+<<<<<<< HEAD
     setState(() {
       _isUploading = true;
     });
@@ -100,11 +115,25 @@ class _UploadDocumentState extends State<UploadDocument> {
         _isUploading = false;
       });
     }
+=======
+    final newDoc = Document(
+      type: _selectedCategory!,
+      title: _titleController.text.isNotEmpty
+          ? _titleController.text
+          : _selectedFile!.path.split('/').last,
+      date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      path: _selectedFile!.path,
+    );
+
+    MyVault.addDocument(newDoc);
+    Navigator.pop(context);
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+<<<<<<< HEAD
       appBar: AppBar(
         title: const Text("Upload Document"),
       ),
@@ -137,6 +166,22 @@ class _UploadDocumentState extends State<UploadDocument> {
               ),
               value: _selectedCategory,
               items: ["Reports", "Prescription", "Bills", "Insurance"]
+=======
+      appBar: AppBar(title: const Text("Upload Document")),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(labelText: "Document Title"),
+            ),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              decoration: const InputDecoration(labelText: "Category"),
+              value: _selectedCategory,
+              items: ["Bills", "Prescription", "Reports"]
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
                   .map((cat) => DropdownMenuItem(
                 value: cat,
                 child: Text(cat),
@@ -148,6 +193,7 @@ class _UploadDocumentState extends State<UploadDocument> {
                 });
               },
             ),
+<<<<<<< HEAD
             const SizedBox(height: 15),
 
             // Date
@@ -222,6 +268,22 @@ class _UploadDocumentState extends State<UploadDocument> {
                   ),
                 ),
               ),
+=======
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _pickFile,
+              child: const Text("Pick File"),
+            ),
+            if (_selectedFile != null)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text("Selected: ${_selectedFile!.path.split('/').last}"),
+              ),
+            const Spacer(),
+            ElevatedButton(
+              onPressed: _saveDocument,
+              child: const Text("Save"),
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
             ),
           ],
         ),

@@ -31,7 +31,11 @@ class ForgotPasswordScreen extends StatelessWidget {
           onPressed: () {
             Navigator.pushReplacement(
               context,
+<<<<<<< HEAD
               MaterialPageRoute(builder: (context) => const SettingsPage(userData: {},)),
+=======
+              MaterialPageRoute(builder: (context) => const SettingsPage()),
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
             );
           },
 

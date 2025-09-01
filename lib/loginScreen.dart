@@ -15,8 +15,12 @@ class LoginScreen extends StatelessWidget {
       resizeToAvoidBottomInset: true, // 👈 keyboard ke liye
       backgroundColor: Colors.white,
       body: SafeArea(
+<<<<<<< HEAD
         child: SingleChildScrollView(
           // 👈 overflow fix
+=======
+        child: SingleChildScrollView( // 👈 overflow fix
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -29,8 +33,12 @@ class LoginScreen extends StatelessWidget {
                     CircleAvatar(
                       radius: 30,
                       backgroundColor: Colors.blue[100],
+<<<<<<< HEAD
                       child: const Icon(Icons.shield,
                           color: Colors.blue, size: 40),
+=======
+                      child: const Icon(Icons.shield, color: Colors.blue, size: 40),
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -104,14 +112,22 @@ class LoginScreen extends StatelessWidget {
 
                     if (email.isEmpty || password.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
+<<<<<<< HEAD
                         const SnackBar(
                             content: Text("⚠️ Please enter email & password")),
+=======
+                        const SnackBar(content: Text("⚠️ Please enter email & password")),
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
                       );
                       return;
                     }
 
                     Map<String, dynamic>? userData =
+<<<<<<< HEAD
                         await MongoDataBase.loginUser(email, password);
+=======
+                    await MongoDataBase.loginUser(email, password);
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 
                     if (userData != null) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -122,14 +138,23 @@ class LoginScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => Dashboard1(
+<<<<<<< HEAD
                             userData: userData, // pura user data pass kar diya
+=======
+                            userEmail: userData["email"], // DB se aya email
+                            userData: userData,           // pura user data pass kar diya
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
                           ),
                         ),
                       );
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
+<<<<<<< HEAD
                         const SnackBar(
                             content: Text("❌ Invalid email or password")),
+=======
+                        const SnackBar(content: Text("❌ Invalid email or password")),
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
                       );
                     }
                   },

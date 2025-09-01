@@ -62,6 +62,7 @@ class MongoDataBase {
     }
   }
 
+<<<<<<< HEAD
   // Upload Document with category
   static Future<void> uploadDocument(
       String userEmail, String fileName, String fileType, String category, Uint8List fileBytes) async {
@@ -72,18 +73,34 @@ class MongoDataBase {
         "fileName": fileName,
         "fileType": fileType,
         "category": category,
+=======
+  // Upload Document
+  static Future<void> uploadDocument(
+      String userEmail, String fileName, String fileType, Uint8List fileBytes) async {
+    try {
+      var result = await docCollection.insertOne({
+        "_id": ObjectId(),
+        "email": userEmail,
+        "fileName": fileName,
+        "fileType": fileType,
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
         "fileBytes": fileBytes.toList(), // stored as List<int>
         "uploadedAt": DateTime.now().toUtc(),
       });
 
       print(result.isSuccess
+<<<<<<< HEAD
           ? "✅ Document uploaded with category: $category"
+=======
+          ? "✅ Document uploaded"
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
           : "❌ Document upload failed");
     } catch (e) {
       print("❌ Error uploading document: $e");
     }
   }
 
+<<<<<<< HEAD
   // Get User Documents by category
   static Future<List<Map<String, dynamic>>> getUserDocumentsByCategory(String email, String category) async {
     try {
@@ -114,6 +131,12 @@ class MongoDataBase {
   static Future<List<Map<String, dynamic>>> getUserDocuments(String email) async {
     try {
       final docs = await docCollection.find({"email": email.trim().toLowerCase()}).toList();
+=======
+  // Get User Documents
+  static Future<List<Map<String, dynamic>>> getUserDocuments(String email) async {
+    try {
+      final docs = await docCollection.find({"email": email}).toList();
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 
       print("📂 Found ${docs.length} documents for $email");
 
@@ -122,7 +145,10 @@ class MongoDataBase {
         return {
           "fileName": doc["fileName"],
           "fileType": doc["fileType"],
+<<<<<<< HEAD
           "category": doc["category"],
+=======
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
           "fileBytes": doc["fileBytes"],
           "uploadedAt": doc["uploadedAt"].toString(),
         };
@@ -133,6 +159,7 @@ class MongoDataBase {
     }
   }
 
+<<<<<<< HEAD
   // Get Document Count by Category
   static Future<Map<String, int>> getDocumentCountByCategory(String email) async {
     try {
@@ -155,6 +182,8 @@ class MongoDataBase {
     }
   }
 
+=======
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
   // Download Document
   static Future<void> downloadDocument(
       Map<String, dynamic> document, String savePath) async {
@@ -176,6 +205,7 @@ class MongoDataBase {
       print("❌ Error saving file: $e");
     }
   }
+<<<<<<< HEAD
 
   // Delete Document
   static Future<bool> deleteDocument(String userEmail, String fileName) async {
@@ -195,4 +225,6 @@ class MongoDataBase {
       return false;
     }
   }
+=======
+>>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 }
