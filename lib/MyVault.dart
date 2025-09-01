@@ -3,30 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
 import 'UploadDocument.dart';
 import 'document_model.dart';
-<<<<<<< HEAD
 import 'dbHelper/mongodb.dart';
-=======
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 
 // ================= DOCUMENT DETAIL PAGE =================
 class DocumentDetailPage extends StatelessWidget {
   final String title;
-<<<<<<< HEAD
   final String category;
-=======
-  final String type;
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
   final String date;
   final String? path;
 
   const DocumentDetailPage({
     super.key,
     required this.title,
-<<<<<<< HEAD
     required this.category,
-=======
-    required this.type,
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
     required this.date,
     this.path,
   });
@@ -98,18 +87,10 @@ class DocumentDetailPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-<<<<<<< HEAD
             Text("Category: $category", style: const TextStyle(fontSize: 18)),
             const SizedBox(height: 10),
             Text("Uploaded on: $date", style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 20),
-=======
-            Text("Type: $type", style: const TextStyle(fontSize: 18)),
-            const SizedBox(height: 10),
-            Text("Uploaded on: $date", style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 20),
-
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
             if (path != null) ...[
               const Text("Preview:", style: TextStyle(fontSize: 16)),
               const SizedBox(height: 10),
@@ -164,19 +145,14 @@ Widget _buildFileThumbnail(String path) {
 
 // ================= MY VAULT =================
 class MyVault extends StatefulWidget {
-<<<<<<< HEAD
   final String userEmail; // Add user email parameter
 
   const MyVault({super.key, required this.userEmail});
-=======
-  const MyVault({super.key});
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 
   // ✅ Static storage
   static final List<Document> _bills = [];
   static final List<Document> _prescriptions = [];
   static final List<Document> _reports = [];
-<<<<<<< HEAD
   static final List<Document> _insurance = [];
 
   static void addDocument(Document doc) {
@@ -188,16 +164,6 @@ class MyVault extends StatefulWidget {
       _reports.add(doc);
     } else if (doc.category == "Insurance") {
       _insurance.add(doc);
-=======
-
-  static void addDocument(Document doc) {
-    if (doc.type == "Bills") {
-      _bills.add(doc);
-    } else if (doc.type == "Prescription") {
-      _prescriptions.add(doc);
-    } else if (doc.type == "Reports") {
-      _reports.add(doc);
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
     }
   }
 
@@ -206,7 +172,6 @@ class MyVault extends StatefulWidget {
     _bills.removeWhere((doc) => doc.path == path);
     _prescriptions.removeWhere((doc) => doc.path == path);
     _reports.removeWhere((doc) => doc.path == path);
-<<<<<<< HEAD
     _insurance.removeWhere((doc) => doc.path == path);
   }
 
@@ -216,8 +181,6 @@ class MyVault extends StatefulWidget {
     _prescriptions.clear();
     _reports.clear();
     _insurance.clear();
-=======
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
   }
 
   @override
@@ -226,19 +189,13 @@ class MyVault extends StatefulWidget {
 
 class _MyVaultState extends State<MyVault> {
   final TextEditingController _searchController = TextEditingController();
-<<<<<<< HEAD
   bool _isLoading = true;
-=======
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(() => setState(() {}));
-<<<<<<< HEAD
     _loadDocumentsFromMongoDB();
-=======
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
   }
 
   @override
@@ -247,7 +204,6 @@ class _MyVaultState extends State<MyVault> {
     super.dispose();
   }
 
-<<<<<<< HEAD
   // ✅ Load documents from MongoDB
   Future<void> _loadDocumentsFromMongoDB() async {
     try {
@@ -278,8 +234,6 @@ class _MyVaultState extends State<MyVault> {
     }
   }
 
-=======
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
   // ✅ Preview function for list
   Future<void> _previewFile(BuildContext context, String? path) async {
     if (path == null) return;
@@ -318,11 +272,7 @@ class _MyVaultState extends State<MyVault> {
     final query = _searchController.text.toLowerCase();
     final filteredDocs = docs.where((doc) {
       return doc.title.toLowerCase().contains(query) ||
-<<<<<<< HEAD
           doc.category.toLowerCase().contains(query);
-=======
-          doc.type.toLowerCase().contains(query);
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
     }).toList();
 
     if (filteredDocs.isEmpty) return const SizedBox();
@@ -334,13 +284,7 @@ class _MyVaultState extends State<MyVault> {
         children: [
           Text(title,
               style: const TextStyle(
-<<<<<<< HEAD
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue)),
-=======
                   fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
           const SizedBox(height: 8),
           ...filteredDocs.map((doc) {
             return Column(
@@ -352,11 +296,7 @@ class _MyVaultState extends State<MyVault> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-<<<<<<< HEAD
                           Text(doc.category,
-=======
-                          Text(doc.type,
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
                               style: const TextStyle(
                                   color: Colors.blue, fontSize: 12)),
                           Text(doc.title,
@@ -378,13 +318,8 @@ class _MyVaultState extends State<MyVault> {
                         color: Colors.grey[200],
                         borderRadius: BorderRadius.circular(8),
                       ),
-<<<<<<< HEAD
                       child: doc.path.isNotEmpty
                           ? _buildFileThumbnail(doc.path)
-=======
-                      child: doc.path != null
-                          ? _buildFileThumbnail(doc.path!)
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
                           : const Icon(Icons.description, color: Colors.grey),
                     ),
                   ],
@@ -400,7 +335,6 @@ class _MyVaultState extends State<MyVault> {
                       label: const Text("Preview"),
                     ),
                     TextButton.icon(
-<<<<<<< HEAD
                       onPressed: () async {
                         // Delete from MongoDB
                         final success = await MongoDataBase.deleteDocument(
@@ -421,15 +355,6 @@ class _MyVaultState extends State<MyVault> {
                                 content: Text("Failed to delete file")),
                           );
                         }
-=======
-                      onPressed: () {
-                        setState(() {
-                          MyVault.removeDocument(doc.path!);
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("File deleted")),
-                        );
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
                       },
                       icon: const Icon(Icons.delete, color: Colors.red),
                       label: const Text("Delete"),
@@ -472,36 +397,21 @@ class _MyVaultState extends State<MyVault> {
 
           // Document sections
           Expanded(
-<<<<<<< HEAD
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView(
-                    children: [
-                      _buildSection("Bills", MyVault._bills),
-                      _buildSection("Prescription", MyVault._prescriptions),
-                      _buildSection("Reports", MyVault._reports),
-                      _buildSection("Insurance", MyVault._insurance),
-                    ],
-                  ),
-=======
-            child: ListView(
               children: [
                 _buildSection("Bills", MyVault._bills),
                 _buildSection("Prescription", MyVault._prescriptions),
                 _buildSection("Reports", MyVault._reports),
+                _buildSection("Insurance", MyVault._insurance),
               ],
             ),
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
           ),
 
           // Upload Button
           Padding(
-<<<<<<< HEAD
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-=======
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -515,7 +425,6 @@ class _MyVaultState extends State<MyVault> {
                 onPressed: () async {
                   await Navigator.push(
                     context,
-<<<<<<< HEAD
                     MaterialPageRoute(
                       builder: (context) =>
                           UploadDocument(userEmail: widget.userEmail),
@@ -523,11 +432,6 @@ class _MyVaultState extends State<MyVault> {
                   );
                   // Refresh documents after upload
                   _loadDocumentsFromMongoDB();
-=======
-                    MaterialPageRoute(builder: (context) => const UploadDocument()),
-                  );
-                  setState(() {}); // refresh after upload
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
                 },
                 icon: const Icon(Icons.upload, color: Colors.white),
                 label: const Text(
@@ -549,8 +453,4 @@ class _MyVaultState extends State<MyVault> {
       ),
     );
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538

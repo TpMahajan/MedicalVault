@@ -1,9 +1,8 @@
 class Document {
-<<<<<<< HEAD
   final String title;
   final String date;
   final String path; // File path
-  final String category; // Document category
+  final String category; // Document category (Reports, Prescriptions, etc.)
   final String userEmail; // User's email for MongoDB storage
 
   Document({
@@ -22,7 +21,7 @@ class Document {
       'path': path,
       'category': category,
       'userEmail': userEmail,
-      'uploadedAt': DateTime.now().toUtc(),
+      'uploadedAt': DateTime.now().toUtc().toIso8601String(),
     };
   }
 
@@ -36,17 +35,4 @@ class Document {
       userEmail: map['userEmail'] ?? '',
     );
   }
-=======
-  final String type;
-  final String title;
-  final String date;
-  final String path; // File path
-
-  Document({
-    required this.type,
-    required this.title,
-    required this.date,
-    required this.path,
-  });
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
 }

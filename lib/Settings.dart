@@ -10,13 +10,9 @@ import 'SettingPages/TermsOfServicesPage.dart';
 import 'loginScreen.dart';
 
 class SettingsPage extends StatefulWidget {
-<<<<<<< HEAD
-  final Map<String, dynamic> userData; // 👈 yaha rakha hai
+  final Map<String, dynamic> userData; // 👈 user data pass hoga
 
-  const SettingsPage({super.key, required this.userData}); // 👈 required parameter
-=======
-  const SettingsPage({super.key});
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
+  const SettingsPage({super.key, required this.userData});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -29,22 +25,19 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-<<<<<<< HEAD
-    // 👇 yaha safe values nikale
+    // 👇 safe values nikale
     final String name = widget.userData["name"]?.toString() ?? "Your Name";
-    final String email = widget.userData["email"]?.toString() ?? "youremail@gmail.com";
+    final String email =
+        widget.userData["email"]?.toString() ?? "youremail@gmail.com";
     final String mobile = widget.userData["mobile"]?.toString() ?? "N/A";
     final String aadhaar = widget.userData["aadhaar"]?.toString() ?? "N/A";
     final String dob = widget.userData["dob"]?.toString() ?? "N/A";
 
-=======
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
     return Scaffold(
       body: ListView(
         padding: const EdgeInsets.all(10),
         children: [
           const SectionTitle("My Profile"),
-<<<<<<< HEAD
           _buildTile(
             Icons.person,
             "Personal Details",
@@ -57,21 +50,14 @@ class _SettingsPageState extends State<SettingsPage> {
               dob: dob,
             ),
           ),
-
-=======
-          _buildTile(Icons.person, "Personal Details",
-              "View and edit your personal details", ProfileName()),
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
           const SectionTitle("Security"),
           _buildTile(Icons.lock, "Password", "", ForgotPasswordScreen()),
-          // _buildTile(Icons.fingerprint, "Biometrics", "", ProfileName()),
           const SectionTitle("QR & Sharing"),
           _buildTile(Icons.qr_code, "Regenerate QR", "", QRPage()),
           _buildTile(Icons.share, "Sharing Controls", "", QRPage()),
           const SectionTitle("Notifications"),
-          _buildSwitchTile(
-              "Approvals", "Receive notifications for approvals", approvals,
-                  (val) {
+          _buildSwitchTile("Approvals", "Receive notifications for approvals",
+              approvals, (val) {
                 setState(() => approvals = val);
               }),
           _buildSwitchTile(
@@ -79,25 +65,16 @@ class _SettingsPageState extends State<SettingsPage> {
                   (val) {
                 setState(() => reminders = val);
               }),
-          _buildSwitchTile(
-              "System", "Receive system notifications", systemNotifs, (val) {
-            setState(() => systemNotifs = val);
-          }),
+          _buildSwitchTile("System", "Receive system notifications",
+              systemNotifs, (val) {
+                setState(() => systemNotifs = val);
+              }),
           const SectionTitle("Privacy & Terms"),
           _buildTile(Icons.privacy_tip, "Privacy Policy", "", PrivacyPolicy()),
-<<<<<<< HEAD
           _buildTile(Icons.description, "Terms of Service", "", TermsOfService()),
           const SectionTitle("Help & Support"),
           _buildTile(Icons.help_outline, "FAQs", "", FAQs()),
           _buildTile(Icons.support_agent, "Contact Support", "", ContactSupportScreen()),
-=======
-          _buildTile(
-              Icons.description, "Terms of Service", "", TermsOfService()),
-          const SectionTitle("Help & Support"),
-          _buildTile(Icons.help_outline, "FAQs", "", FAQs()),
-          _buildTile(Icons.support_agent, "Contact Support", "",
-              ContactSupportScreen()),
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
           const SectionTitle("Account"),
           _buildTile(Icons.logout, "Logout", "", LoginScreen()),
         ],
@@ -149,7 +126,3 @@ class SectionTitle extends StatelessWidget {
     );
   }
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538

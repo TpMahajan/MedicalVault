@@ -79,13 +79,10 @@ class QrAccessWorks extends StatelessWidget {
             const Text(
               "⚡ In short: QR = Quick + Secure + Hassle-free access to your digital vault.",
               style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-<<<<<<< HEAD
-                  color: Colors.blue),
-=======
-                  color: Colors.blueAccent),
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueAccent, // ✅ conflict resolved
+              ),
             ),
           ],
         ),

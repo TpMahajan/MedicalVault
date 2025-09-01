@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../Settings.dart';
 
 void main() {
@@ -31,14 +30,11 @@ class ForgotPasswordScreen extends StatelessWidget {
           onPressed: () {
             Navigator.pushReplacement(
               context,
-<<<<<<< HEAD
-              MaterialPageRoute(builder: (context) => const SettingsPage(userData: {},)),
-=======
-              MaterialPageRoute(builder: (context) => const SettingsPage()),
->>>>>>> 784214e06d8923dbaf5c46765cece00c1969c538
+              MaterialPageRoute(
+                builder: (context) => const SettingsPage(userData: {}),
+              ),
             );
           },
-
         ),
         title: const Text(
           'Forgot Password',
@@ -81,7 +77,9 @@ class ForgotPasswordScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  // TODO: Verification logic add karna h
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   padding: const EdgeInsets.symmetric(vertical: 16),
