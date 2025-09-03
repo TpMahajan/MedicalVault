@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 import 'AppFooter.dart';
 import 'CategoryVaultPage.dart';
@@ -39,6 +41,7 @@ class _Dashboard1State extends State<Dashboard1> {
     super.dispose();
   }
 
+  /// 🔹 Load counts from MongoDB
   Future<void> _loadDocumentCounts() async {
     try {
       final counts = await MongoDataBase.getDocumentCountByCategory(
@@ -76,130 +79,134 @@ class _Dashboard1State extends State<Dashboard1> {
         },
         children: [
           // 🏠 Dashboard tab
-          ListView(
-            padding: const EdgeInsets.all(30.0),
-            children: [
-              Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 20,
-                    backgroundImage: NetworkImage(
-                        'https://cdn-icons-png.flaticon.com/512/9203/9203764.png'),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Hello, $userName 👋',
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Quick Actions',
-                style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFE0E0E0),
-                  child: Icon(Icons.qr_code, color: Colors.black),
-                ),
-                title: const Text('Generate / Share QR'),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => QRPage()),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFE0E0E0),
-                  child: Icon(Icons.list_alt, color: Colors.black),
-                ),
-                title: const Text('Access Requests'),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => RequestsPage()),
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'My Documents',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  if (!_isLoadingCounts)
-                    Text(
-                      '${_documentCounts.values.fold(0, (sum, count) => sum + count)} total',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
-                      ),
+          RefreshIndicator(
+            onRefresh: _loadDocumentCounts, // 👈 pull to refresh
+            child: ListView(
+              padding: const EdgeInsets.all(30.0),
+              children: [
+                Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 20,
+                      backgroundImage: NetworkImage(
+                          'https://cdn-icons-png.flaticon.com/512/9203/9203764.png'),
                     ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // 📂 Category Grid
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: 4,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2, // 2 columns
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1, // 👈 fix ratio (1 = square cards)
+                    const SizedBox(width: 8),
+                    Text(
+                      'Hello, $userName 👋',
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ],
                 ),
-                itemBuilder: (context, index) {
-                  final categories = [
-                    {
-                      "title": "Reports",
-                      "image": "assets/Reports.png",
-                      "category": "Reports",
-                      "count": _documentCounts["Reports"] ?? 0
-                    },
-                    {
-                      "title": "Prescriptions",
-                      "image": "assets/Prescription.png",
-                      "category": "Prescription",
-                      "count": _documentCounts["Prescription"] ?? 0
-                    },
-                    {
-                      "title": "Bills",
-                      "image": "assets/2851468.png",
-                      "category": "Bills",
-                      "count": _documentCounts["Bills"] ?? 0
-                    },
-                    {
-                      "title": "Insurance Details",
-                      "image": "assets/Insurance12.png",
-                      "category": "Insurance",
-                      "count": _documentCounts["Insurance"] ?? 0
-                    },
-                  ];
+                const SizedBox(height: 24),
+                const Text(
+                  'Quick Actions',
+                  style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFE0E0E0),
+                    child: Icon(Icons.qr_code, color: Colors.black),
+                  ),
+                  title: const Text('Generate / Share QR'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => QRPage()),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFE0E0E0),
+                    child: Icon(Icons.list_alt, color: Colors.black),
+                  ),
+                  title: const Text('Access Requests'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => RequestsPage()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'My Documents',
+                      style:
+                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    if (!_isLoadingCounts)
+                      Text(
+                        '${_documentCounts.values.fold(0, (sum, count) => sum + count)} total',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
 
-                  final item = categories[index];
-                  return _buildCategoryCard(
-                    context,
-                    title: item["title"] as String,
-                    imagePath: item["image"] as String,
-                    category: item["category"] as String,
-                    count: item["count"] as int,
-                  );
-                },
-              )
-            ],
+                // 📂 Category Grid
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: 4,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2, // 2 columns
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1, // 👈 fix ratio (1 = square cards)
+                  ),
+                  itemBuilder: (context, index) {
+                    final categories = [
+                      {
+                        "title": "Reports",
+                        "image": "assets/Reports.png",
+                        "category": "Reports",
+                        "count": _documentCounts["Reports"] ?? 0
+                      },
+                      {
+                        "title": "Prescriptions",
+                        "image": "assets/Prescription.png",
+                        "category": "Prescription",
+                        "count": _documentCounts["Prescription"] ?? 0
+                      },
+                      {
+                        "title": "Bills",
+                        "image": "assets/2851468.png",
+                        "category": "Bills",
+                        "count": _documentCounts["Bills"] ?? 0
+                      },
+                      {
+                        "title": "Insurance Details",
+                        "image": "assets/Insurance12.png",
+                        "category": "Insurance",
+                        "count": _documentCounts["Insurance"] ?? 0
+                      },
+                    ];
+
+                    final item = categories[index];
+                    return _buildCategoryCard(
+                      context,
+                      title: item["title"] as String,
+                      imagePath: item["image"] as String,
+                      category: item["category"] as String,
+                      count: item["count"] as int,
+                    );
+                  },
+                )
+              ],
+            ),
           ),
 
           // 🔐 Vault tab
@@ -271,8 +278,9 @@ class _Dashboard1State extends State<Dashboard1> {
         required String category,
         required int count}) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        // ✅ Go to category page and refresh counts when coming back
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => CategoryVaultPage(
@@ -281,6 +289,7 @@ class _Dashboard1State extends State<Dashboard1> {
             ),
           ),
         );
+        _loadDocumentCounts(); // refresh after returning
       },
       child: Card(
         elevation: 2,

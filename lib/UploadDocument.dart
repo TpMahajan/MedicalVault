@@ -1,14 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
-import 'MyVault.dart';
-import 'document_model.dart';
-import 'dbHelper/mongodb.dart';
+import 'dbHelper/mongodb.dart'; // ✅ use your MongoDB helper
 
 class UploadDocument extends StatefulWidget {
   final String userEmail;
-
   const UploadDocument({super.key, required this.userEmail});
 
   @override
@@ -17,6 +15,7 @@ class UploadDocument extends StatefulWidget {
 
 class _UploadDocumentState extends State<UploadDocument> {
   File? _selectedFile;
+  Uint8List? _fileBytes;
   String? _selectedCategory;
   DateTime? _selectedDate;
   final TextEditingController _titleController = TextEditingController();
@@ -28,6 +27,8 @@ class _UploadDocumentState extends State<UploadDocument> {
     if (result != null) {
       setState(() {
         _selectedFile = File(result.files.single.path!);
+        _fileBytes =
+            result.files.single.bytes ?? _selectedFile!.readAsBytesSync();
       });
     }
   }
@@ -46,75 +47,71 @@ class _UploadDocumentState extends State<UploadDocument> {
     }
   }
 
-  Future<void> _saveDocument() async {
+  Future<void> _uploadDocument() async {
     if (_selectedFile == null || _selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please select file & category")),
+        const SnackBar(content: Text("⚠️ Please select file & category")),
       );
       return;
     }
 
-    setState(() {
-      _isUploading = true;
-    });
+    setState(() => _isUploading = true);
+
+    final fileName = _titleController.text.isNotEmpty
+        ? _titleController.text
+        : _selectedFile!.path.split('/').last;
+
+    final category = _selectedCategory!;
+    final date = _selectedDate != null
+        ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
+        : DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final notes = _notesController.text;
+    final fileType = _selectedFile!.path.split('.').last;
 
     try {
-      final fileBytes = await _selectedFile!.readAsBytes();
-      final fileName = _titleController.text.isNotEmpty
-          ? _titleController.text
-          : _selectedFile!.path.split('/').last;
-      final fileType = _selectedFile!.path.split('.').last.toLowerCase();
-      final category = _selectedCategory!;
-      final date = _selectedDate != null
-          ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
-          : DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-      // Upload to MongoDB
+      // ✅ MongoDB save
       await MongoDataBase.uploadDocument(
         widget.userEmail,
         fileName,
         fileType,
         category,
-        fileBytes,
-      );
-
-      // Local model
-      final newDoc = Document(
+        _fileBytes!,
         title: fileName,
+        notes: notes,
         date: date,
-        path: _selectedFile!.path,
-        category: category,
-        userEmail: widget.userEmail,
       );
 
-      MyVault.addDocument(newDoc);
+      // ✅ Document metadata banake MyVault me bhej do
+      final newDoc = {
+        "title": fileName,
+        "category": category,
+        "date": date,
+        "notes": notes,
+        "path": _selectedFile!.path, // local preview ke liye
+        "fileType": fileType,
+      };
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("✅ Document uploaded successfully!")),
       );
 
-      Navigator.pop(context);
+      Navigator.pop(context, newDoc); // 👈 return document data
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("❌ Error uploading document: $e")),
       );
     } finally {
-      setState(() {
-        _isUploading = false;
-      });
+      setState(() => _isUploading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Upload Document"),
-      ),
+      appBar: AppBar(title: const Text("Upload Document")),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Title
             TextField(
@@ -127,10 +124,11 @@ class _UploadDocumentState extends State<UploadDocument> {
                 ),
               ),
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 12),
 
             // Category
             DropdownButtonFormField<String>(
+              value: _selectedCategory,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.category),
                 labelText: "Category",
@@ -138,26 +136,24 @@ class _UploadDocumentState extends State<UploadDocument> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              value: _selectedCategory,
               items: ["Reports", "Prescription", "Bills", "Insurance"]
-                  .map((cat) => DropdownMenuItem(
-                value: cat,
-                child: Text(cat),
-              ))
+                  .map((cat) =>
+                  DropdownMenuItem(value: cat, child: Text(cat)))
                   .toList(),
-              onChanged: (val) {
-                setState(() {
-                  _selectedCategory = val;
-                });
-              },
+              onChanged: (val) => setState(() => _selectedCategory = val),
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 12),
 
             // Date
             GestureDetector(
               onTap: _pickDate,
               child: AbsorbPointer(
                 child: TextFormField(
+                  controller: TextEditingController(
+                    text: _selectedDate != null
+                        ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
+                        : "",
+                  ),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.calendar_today),
                     labelText: "Date",
@@ -165,15 +161,10 @@ class _UploadDocumentState extends State<UploadDocument> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  controller: TextEditingController(
-                    text: _selectedDate != null
-                        ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
-                        : "",
-                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 12),
 
             // Notes
             TextField(
@@ -187,7 +178,7 @@ class _UploadDocumentState extends State<UploadDocument> {
                 ),
               ),
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 12),
 
             // File picker
             Row(
@@ -213,17 +204,11 @@ class _UploadDocumentState extends State<UploadDocument> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                icon: const Icon(Icons.save),
+                icon: const Icon(Icons.cloud_upload),
                 label: _isUploading
                     ? const Text("Uploading...")
-                    : const Text("Save Document"),
-                onPressed: _isUploading ? null : _saveDocument,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+                    : const Text("Upload Document"),
+                onPressed: _isUploading ? null : _uploadDocument,
               ),
             ),
           ],

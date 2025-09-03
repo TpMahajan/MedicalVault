@@ -8,7 +8,7 @@ class MongoDataBase {
   static late DbCollection userCollection;
   static late DbCollection docCollection;
 
-  // Connect to MongoDB
+  // ================= CONNECT =================
   static Future<void> connect() async {
     try {
       db = await Db.create(MONGO_URL);
@@ -20,6 +20,8 @@ class MongoDataBase {
       print("❌ MongoDB connection failed: $e");
     }
   }
+
+  // ================= USER FUNCTIONS =================
 
   // Signup
   static Future<void> signupUser(
@@ -57,9 +59,19 @@ class MongoDataBase {
     }
   }
 
-  // Upload Document with category
-  static Future<void> uploadDocument(String userEmail, String fileName,
-      String fileType, String category, Uint8List fileBytes) async {
+  // ================= DOCUMENT FUNCTIONS =================
+
+  // Upload Document
+  static Future<void> uploadDocument(
+      String userEmail,
+      String fileName,
+      String fileType,
+      String category,
+      Uint8List fileBytes, {
+        String title = "",
+        String notes = "",
+        String date = "",
+      }) async {
     try {
       var result = await docCollection.insertOne({
         "_id": ObjectId(),
@@ -68,6 +80,9 @@ class MongoDataBase {
         "fileType": fileType,
         "category": category,
         "fileBytes": fileBytes.toList(),
+        "title": title,
+        "notes": notes,
+        "date": date,
         "uploadedAt": DateTime.now().toUtc(),
       });
 
@@ -79,79 +94,70 @@ class MongoDataBase {
     }
   }
 
-  // Get User Documents by category
-  static Future<List<Map<String, dynamic>>> getUserDocumentsByCategory(
-      String email, String category) async {
-    try {
-      final docs = await docCollection.find({
-        "email": email.trim().toLowerCase(),
-        "category": category
-      }).toList();
-
-      print(
-          "📂 Found ${docs.length} documents for $email in category: $category");
-
-      return docs.map((doc) {
-        return {
-          "fileName": doc["fileName"],
-          "fileType": doc["fileType"],
-          "category": doc["category"],
-          "fileBytes": doc["fileBytes"],
-          "uploadedAt": doc["uploadedAt"].toString(),
-        };
-      }).toList();
-    } catch (e) {
-      print("❌ Error fetching documents by category: $e");
-      return [];
-    }
-  }
-
   // Get All User Documents
   static Future<List<Map<String, dynamic>>> getUserDocuments(
       String email) async {
     try {
-      final docs =
-      await docCollection.find({"email": email.trim().toLowerCase()}).toList();
+      final docs = await docCollection
+          .find({"email": email.trim().toLowerCase()}).toList();
 
       print("📂 Found ${docs.length} documents for $email");
 
-      return docs.map((doc) {
-        return {
-          "fileName": doc["fileName"],
-          "fileType": doc["fileType"],
-          "category": doc["category"],
-          "fileBytes": doc["fileBytes"],
-          "uploadedAt": doc["uploadedAt"].toString(),
-        };
-      }).toList();
+      return docs;
     } catch (e) {
       print("❌ Error fetching documents: $e");
       return [];
     }
   }
 
-  // Get Document Count by Category
-  static Future<Map<String, int>> getDocumentCountByCategory(
-      String email) async {
+  // ✅ Get User Documents by Category
+  // Get documents by category
+  static Future<List<Map<String, dynamic>>> getDocumentsByCategory(
+      String userEmail, String category) async {
     try {
-      final categories = ["Reports", "Prescription", "Bills", "Insurance"];
-      Map<String, int> counts = {};
+      final docs = await docCollection.find({
+        "email": userEmail.trim().toLowerCase(),
+        "category": category
+      }).toList();
 
-      for (String category in categories) {
-        final count = await docCollection.count({
-          "email": email.trim().toLowerCase(),
-          "category": category
-        });
-        counts[category] = count;
+      return docs;
+    } catch (e) {
+      print("❌ Error fetching documents by category: $e");
+      return [];
+    }
+  }
+
+
+  // Get Document Count by Category
+  // Get Document Count by Category
+  static Future<Map<String, int>> getDocumentCountByCategory(String userEmail) async {
+    try {
+      final pipeline = [
+        {
+          '\$match': {"email": userEmail.trim().toLowerCase()}
+        },
+        {
+          '\$group': {
+            "_id": "\$category",
+            "count": {"\$sum": 1}
+          }
+        }
+      ];
+
+      final aggResult = await docCollection.aggregateToStream(pipeline).toList();
+
+      Map<String, int> counts = {};
+      for (var doc in aggResult) {
+        counts[doc["_id"]] = doc["count"] as int;
       }
 
-      print("📊 Document counts for $email: $counts");
       return counts;
     } catch (e) {
-      print("❌ Error getting document counts: $e");
+      print("❌ Error counting documents: $e");
       return {};
     }
   }
+
 
   // Download Document
   static Future<void> downloadDocument(
@@ -176,12 +182,11 @@ class MongoDataBase {
   }
 
   // Delete Document
-  static Future<bool> deleteDocument(
-      String userEmail, String fileName) async {
+  static Future<bool> deleteDocument(String userEmail, String fileName) async {
     try {
       final result = await docCollection.deleteOne({
         "email": userEmail.trim().toLowerCase(),
-        "fileName": fileName
+        "fileName": fileName,
       });
 
       print(result.isSuccess

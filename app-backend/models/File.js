@@ -7,7 +7,12 @@ const fileSchema = new mongoose.Schema(
     mimeType: { type: String },
     size: { type: Number },
     path: { type: String },
-    url: { type: String }
+    url: { type: String },
+    category: {
+          type: String,
+          enum: ["Prescription", "Report", "Bill", "Other"], // 👈 predefined categories
+          default: "Other",
+        },
   },
   { timestamps: true }
 );

@@ -44,6 +44,6 @@ app.*.map.json
 
 # Node.js backend
 node_modules/
-uploads/
+app-backend/uploads/
 .env
 db.env

@@ -6,7 +6,6 @@ import 'package:uuid/uuid.dart';
 import 'dart:ui' as ui;
 import 'package:cross_file/cross_file.dart';
 
-// Import the QR access info page
 import 'HowQrAcessWorks.dart';
 
 class QRPage extends StatefulWidget {
@@ -51,18 +50,28 @@ class _QRPageState extends State<QRPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          const SizedBox(height: 60),
+      backgroundColor: Colors.grey[50],
 
-          // QR Image Container (Clickable with Hero Animation)
-          Center(
-            child: GestureDetector(
+      body: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.white, Color(0xFFE3F2FD)], // Light Blue Gradient
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 60),
+
+            // QR Card with shadow
+            GestureDetector(
               onTap: () {
                 Navigator.push(
                   context,
                   PageRouteBuilder(
-                    opaque: false, // important → keeps background visible
+                    opaque: false,
                     transitionDuration: const Duration(milliseconds: 400),
                     reverseTransitionDuration: const Duration(milliseconds: 300),
                     pageBuilder: (_, __, ___) => QRZoomPage(qrData: _qrData),
@@ -71,91 +80,130 @@ class _QRPageState extends State<QRPage> {
               },
               child: Hero(
                 tag: "qrHero",
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.orange[100],
-                    borderRadius: BorderRadius.circular(12),
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  padding: const EdgeInsets.all(16),
-                  child: RepaintBoundary(
-                    key: _repaintKey,
-                    child: QrImageView(
-                      data: _qrData,
-                      version: QrVersions.auto,
-                      size: 200.0,
-                      backgroundColor: Colors.white,
+                  elevation: 8,
+                  shadowColor: Colors.black26,
+                  margin: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: RepaintBoundary(
+                      key: _repaintKey,
+                      child: QrImageView(
+                        data: _qrData,
+                        version: QrVersions.auto,
+                        size: 220,
+                        backgroundColor: Colors.white,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
-          const Text(
-            "Doctor will scan to request access",
-            style: TextStyle(fontSize: 14, color: Colors.black),
-          ),
-          const SizedBox(height: 20),
-
-          // Buttons Row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _shareQR,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: const Text("Share QR", style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _regenerateQR,
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                      side: const BorderSide(color: Colors.blue),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: const Text("Regenerate QR", style: TextStyle(color: Colors.blue)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // "How QR access works?" Button
-          TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const QrAccessWorks()),
-              );
-            },
-            child: const Text(
-              "How QR access works?",
+            const Text(
+              "Doctor will scan this QR to request access",
               style: TextStyle(
-                fontSize: 14,
-                color: Colors.blue,
-                decoration: TextDecoration.underline,
+                fontSize: 16,
+                color: Colors.black87,
+                fontWeight: FontWeight.w500,
               ),
             ),
-          ),
 
-          const Spacer(),
-        ],
+            const Spacer(),
+
+            // Buttons
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 30.0),
+              child: Column(
+                children: [
+                  // Share QR (Gradient)
+                  Container(
+                    width: double.infinity,
+                    height: 55,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF2193b0), Color(0xFF6dd5ed)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ElevatedButton.icon(
+                      onPressed: _shareQR,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.share,color: Colors.white,),
+                      label: const Text("Share QR"),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Regenerate QR (Same Gradient)
+                  Container(
+                    width: double.infinity,
+                    height: 55,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF2193b0), Color(0xFF6dd5ed)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ElevatedButton.icon(
+                      onPressed: _regenerateQR,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.refresh, color: Colors.white,),
+                      label: const Text("Regenerate QR"),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // How QR works? (Gradient Text Button)
+                  ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFF2193b0), Color(0xFF6dd5ed)],
+                    ).createShader(Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const QrAccessWorks()),
+                        );
+                      },
+                      child: const Text(
+                        "How QR access works?",
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.white, // masked by gradient
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
     );
   }
@@ -204,16 +252,16 @@ class _QRZoomPageState extends State<QRZoomPage> with SingleTickerProviderStateM
     return GestureDetector(
       onTap: _close,
       child: Scaffold(
-        backgroundColor: Colors.transparent, // keep original bg visible
+        backgroundColor: Colors.transparent,
         body: Stack(
           children: [
-            // Blur the background
+            // Light blur background
             BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-              child: Container(color: Colors.black.withOpacity(0.2)), // frosted effect
+              filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(color: Colors.white.withOpacity(0.6)),
             ),
 
-            // Centered QR with animation
+            // Centered QR
             Center(
               child: Hero(
                 tag: "qrHero",

@@ -1,10 +1,13 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
 import 'dbHelper/mongodb.dart';
 
 class CategoryVaultPage extends StatefulWidget {
-  final String category; // Reports, Prescriptions, Bills, Insurance
-  final String userEmail; // User email to fetch docs
+  final String category;
+  final String userEmail;
 
   const CategoryVaultPage({
     super.key,
@@ -17,7 +20,7 @@ class CategoryVaultPage extends StatefulWidget {
 }
 
 class _CategoryVaultPageState extends State<CategoryVaultPage> {
-  List<Map<String, dynamic>> files = []; // Documents from MongoDB
+  List<Map<String, dynamic>> files = [];
   bool _isLoading = true;
 
   @override
@@ -27,68 +30,74 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
   }
 
   Future<void> _loadFiles() async {
+    setState(() => _isLoading = true);
+
+    final docs = await MongoDataBase.getDocumentsByCategory(
+      widget.userEmail,
+      widget.category,
+    );
+
     setState(() {
-      _isLoading = true;
+      files = docs;
+      _isLoading = false;
     });
+  }
 
+  Future<void> _openFile(Map<String, dynamic> file) async {
     try {
-      // Fetch documents from MongoDB by category
-      final documents = await MongoDataBase.getUserDocumentsByCategory(
-        widget.userEmail,
-        widget.category,
-      );
+      List<int> fileBytes = List<int>.from(file["fileBytes"] ?? []);
+      if (fileBytes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("⚠ File data missing")),
+        );
+        return;
+      }
 
-      setState(() {
-        files = documents;
-        _isLoading = false;
-      });
+      final dir = await getTemporaryDirectory();
+      final path = "${dir.path}/${file['fileName']}";
+      File tempFile = File(path);
+
+      await tempFile.writeAsBytes(fileBytes);
+      await OpenFile.open(tempFile.path);
     } catch (e) {
-      print("Error loading files: $e");
-      setState(() {
-        _isLoading = false;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ Error opening file: $e")),
+      );
     }
   }
 
-  Future<void> _deleteFile(int index) async {
+  Future<void> _deleteFile(Map<String, dynamic> file) async {
     try {
-      final file = files[index];
-      final fileName = file['fileName'];
+      final result = await MongoDataBase.deleteDocument(
+        widget.userEmail,
+        file["fileName"], // 👈 yeh pass karna hoga
+      );
 
-      // Delete from MongoDB
-      final success =
-      await MongoDataBase.deleteDocument(widget.userEmail, fileName);
-
-      if (success) {
-        // Remove from local list
+      if (result) {
         setState(() {
-          files.removeAt(index);
+          files.removeWhere((f) => f["_id"].toString() == file["_id"].toString());
         });
-
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Document deleted successfully")),
+          const SnackBar(content: Text("✅ Document deleted successfully")),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to delete document")),
+          const SnackBar(content: Text("❌ Failed to delete document")),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error deleting document: $e")),
+        SnackBar(content: Text("❌ Error deleting file: $e")),
       );
     }
   }
 
-  void _openFile(String path) {
-    OpenFile.open(path);
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("${widget.category}"),
+        title: Text(widget.category),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         actions: [
@@ -107,14 +116,10 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
           children: [
             Icon(Icons.folder_open, size: 64, color: Colors.grey),
             SizedBox(height: 16),
-            Text(
-              "No documents uploaded yet",
-              style: TextStyle(fontSize: 18, color: Colors.grey),
-            ),
-            Text(
-              "Upload documents to see them here",
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
+            Text("No documents uploaded yet",
+                style: TextStyle(fontSize: 18, color: Colors.grey)),
+            Text("Upload documents to see them here",
+                style: TextStyle(fontSize: 14, color: Colors.grey)),
           ],
         ),
       )
@@ -123,22 +128,34 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         itemBuilder: (context, index) {
           final file = files[index];
           return Card(
-            margin: const EdgeInsets.symmetric(
-                horizontal: 12, vertical: 6),
+            margin:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
             child: ListTile(
-              leading: _buildFileIcon(file['fileType']),
-              title: Text(
-                file['fileName'],
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
+              leading: _buildThumbnail(file),
+              title: Text(file['fileName']),
               subtitle: Text(
-                'Uploaded: ${_formatDate(file['uploadedAt'])}',
+                'Uploaded: ${file['uploadedAt'] ?? ''}',
                 style: const TextStyle(fontSize: 12),
               ),
-              onTap: () => _openFile(file['fileName']),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () => _deleteFile(index),
+              trailing: Wrap(
+                spacing: 8,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove_red_eye,
+                        color: Colors.blue),
+                    onPressed: () => _openFile(file),
+                    tooltip: "Preview",
+                  ),
+                  IconButton(
+                    icon:
+                    const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () =>
+                        _deleteFile(file),
+                    tooltip: "Delete",
+                  ),
+                ],
               ),
             ),
           );
@@ -147,30 +164,32 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
     );
   }
 
-  Widget _buildFileIcon(String fileType) {
-    switch (fileType.toLowerCase()) {
-      case 'pdf':
-        return const Icon(Icons.picture_as_pdf, color: Colors.red, size: 32);
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
+  /// 🔹 Thumbnail Builder
+  Widget _buildThumbnail(Map<String, dynamic> file) {
+    final type = file['fileType']?.toString().toLowerCase() ?? "";
+    if (type.contains("image")) {
+      try {
+        List<int> fileBytes = List<int>.from(file["fileBytes"] ?? []);
+        if (fileBytes.isNotEmpty) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.memory(
+              fileBytes as Uint8List,
+              width: 50,
+              height: 50,
+              fit: BoxFit.cover,
+            ),
+          );
+        }
+      } catch (e) {
         return const Icon(Icons.image, color: Colors.green, size: 32);
-      case 'doc':
-      case 'docx':
-        return const Icon(Icons.description, color: Colors.blue, size: 32);
-      default:
-        return const Icon(Icons.insert_drive_file,
-            color: Colors.grey, size: 32);
+      }
+    } else if (type.contains("pdf")) {
+      return const Icon(Icons.picture_as_pdf, color: Colors.red, size: 40);
+    } else if (type.contains("doc")) {
+      return const Icon(Icons.description, color: Colors.blue, size: 40);
     }
-  }
-
-  String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return '${date.day}/${date.month}/${date.year}';
-    } catch (e) {
-      return 'Unknown date';
-    }
+    return const Icon(Icons.insert_drive_file,
+        color: Colors.grey, size: 40);
   }
 }

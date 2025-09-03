@@ -1,9 +1,16 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:lottie/lottie.dart';
 import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
 import 'UploadDocument.dart';
 import 'document_model.dart';
 import 'dbHelper/mongodb.dart';
+
+// Base URL for your API server (adjust if your actual endpoint structure is different)
+const String baseUrl = 'http://localhost:5000';
 
 // ================= DOCUMENT DETAIL PAGE =================
 class DocumentDetailPage extends StatelessWidget {
@@ -11,6 +18,7 @@ class DocumentDetailPage extends StatelessWidget {
   final String category;
   final String date;
   final String? path;
+  final String userEmail; // Added to allow deleting from DB
 
   const DocumentDetailPage({
     super.key,
@@ -18,63 +26,78 @@ class DocumentDetailPage extends StatelessWidget {
     required this.category,
     required this.date,
     this.path,
+    required this.userEmail,
   });
 
-  // ✅ Delete function
+  // ✅ Delete function (updated to delete from DB via MongoDataBase/API, no local file delete since files are on server)
   Future<void> _deleteFile(BuildContext context) async {
     if (path == null) return;
 
     try {
-      final file = File(path!);
-      if (await file.exists()) {
-        await file.delete();
+      // Delete from DB (assuming MongoDataBase.deleteDocument handles server-side deletion, including the file)
+      final success = await MongoDataBase.deleteDocument(userEmail, title);
+
+      if (success) {
+        // Remove from local static list
+        MyVault.removeDocument(path!);
+
+        Navigator.pop(context, true); // Return to refresh vault
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("File deleted")));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to delete file from server")));
       }
-
-      // remove from MyVault
-      MyVault.removeDocument(path!);
-
-      Navigator.pop(context, true); // return to refresh vault
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("File deleted")));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error deleting file: $e")),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error deleting file: $e")));
     }
   }
 
-  // ✅ Preview function
+  // ✅ Preview function (updated to handle remote URLs from server)
   Future<void> _previewFile(BuildContext context) async {
     if (path == null) return;
 
-    final file = File(path!);
-    if (await file.exists()) {
-      final ext = path!.split('.').last.toLowerCase();
+    final isRemote = path!.startsWith('http');
 
-      if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].contains(ext)) {
-        // Open fullscreen image
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => Scaffold(
-              appBar: AppBar(title: const Text("Image Preview")),
-              body: Center(child: Image.file(file)),
-            ),
+    File? file;
+    String? localPath = path;
+
+    if (!isRemote) {
+      file = File(path!);
+      if (!(await file.exists())) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("File does not exist")));
+        return;
+      }
+    }
+
+    final ext = path!.split('.').last.toLowerCase();
+
+    if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].contains(ext)) {
+      // Open fullscreen image (use network for remote, file for local)
+      Widget imageWidget = isRemote ? Image.network(path!) : Image.file(file!);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text("Image Preview")),
+            body: Center(child: imageWidget),
           ),
-        );
-      } else {
-        // Open PDFs & others externally
-        final result = await OpenFile.open(file.path);
-        if (result.type != ResultType.done) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Cannot open file: ${result.message}")),
-          );
+        ),
+      );
+    } else {
+      // For non-images like PDF, download if remote, then open
+      if (isRemote) {
+        try {
+          localPath = await _downloadFile(path!);
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error downloading file: $e")));
+          return;
         }
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("File does not exist")),
-      );
+
+      final result = await OpenFile.open(localPath!);
+      if (result.type != ResultType.done) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Cannot open file: ${result.message}")));
+      }
     }
   }
 
@@ -96,8 +119,7 @@ class DocumentDetailPage extends StatelessWidget {
               const SizedBox(height: 10),
               _buildFileThumbnail(path!),
               const SizedBox(height: 20),
-              Text("File path: $path",
-                  style: const TextStyle(color: Colors.grey, fontSize: 12)),
+              Text("File path: $path", style: const TextStyle(color: Colors.grey, fontSize: 12)),
               const SizedBox(height: 20),
 
               // Buttons
@@ -112,9 +134,7 @@ class DocumentDetailPage extends StatelessWidget {
                   ElevatedButton.icon(
                     onPressed: () => _deleteFile(context),
                     icon: const Icon(Icons.delete),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                     label: const Text("Delete"),
                   ),
                 ],
@@ -127,14 +147,42 @@ class DocumentDetailPage extends StatelessWidget {
   }
 }
 
-// ✅ Thumbnail builder
+// ✅ Download helper for remote files
+Future<String> _downloadFile(String url) async {
+  final response = await http.get(Uri.parse(url));
+  if (response.statusCode == 200) {
+    final dir = await getTemporaryDirectory();
+    final filename = url.split('/').last;
+    final file = File('${dir.path}/$filename');
+    await file.writeAsBytes(response.bodyBytes);
+    return file.path;
+  } else {
+    throw Exception('Failed to download file: ${response.statusCode}');
+  }
+}
+
+// ✅ Thumbnail builder (updated to handle remote URLs)
 Widget _buildFileThumbnail(String path) {
   final ext = path.split('.').last.toLowerCase();
+  final isRemote = path.startsWith('http');
 
   if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].contains(ext)) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
-      child: Image.file(File(path), fit: BoxFit.cover, height: 100, width: 100),
+      child: isRemote
+          ? Image.network(
+        path,
+        fit: BoxFit.cover,
+        height: 100,
+        width: 100,
+        errorBuilder: (context, error, stackTrace) => const Icon(Icons.error, size: 80),
+      )
+          : Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        height: 100,
+        width: 100,
+      ),
     );
   } else if (ext == "pdf") {
     return const Icon(Icons.picture_as_pdf, color: Colors.red, size: 80);
@@ -145,11 +193,11 @@ Widget _buildFileThumbnail(String path) {
 
 // ================= MY VAULT =================
 class MyVault extends StatefulWidget {
-  final String userEmail; // Add user email parameter
+  final String userEmail;
 
   const MyVault({super.key, required this.userEmail});
 
-  // ✅ Static storage
+  // ✅ Static storage (unchanged)
   static final List<Document> _bills = [];
   static final List<Document> _prescriptions = [];
   static final List<Document> _reports = [];
@@ -167,7 +215,6 @@ class MyVault extends StatefulWidget {
     }
   }
 
-  // ✅ Remove method
   static void removeDocument(String path) {
     _bills.removeWhere((doc) => doc.path == path);
     _prescriptions.removeWhere((doc) => doc.path == path);
@@ -175,7 +222,6 @@ class MyVault extends StatefulWidget {
     _insurance.removeWhere((doc) => doc.path == path);
   }
 
-  // ✅ Clear all documents
   static void clearAllDocuments() {
     _bills.clear();
     _prescriptions.clear();
@@ -204,7 +250,8 @@ class _MyVaultState extends State<MyVault> {
     super.dispose();
   }
 
-  // ✅ Load documents from MongoDB
+  // ✅ Load documents from MongoDB (updated to construct full URL for path BEFORE creating Document, assuming 'path' in DB is filename and server serves at /files/{filename})
+  // If your server endpoint for files is different (e.g., /api/download/{id}), adjust the URL construction accordingly.
   Future<void> _loadDocumentsFromMongoDB() async {
     try {
       setState(() {
@@ -214,12 +261,19 @@ class _MyVaultState extends State<MyVault> {
       // Clear existing documents
       MyVault.clearAllDocuments();
 
-      // Fetch all documents for the user
+      // Fetch all documents for the user (assuming MongoDataBase.getUserDocuments fetches from your API server)
       final documents = await MongoDataBase.getUserDocuments(widget.userEmail);
 
-      // Add documents to appropriate categories
-      for (final doc in documents) {
-        final document = Document.fromMap(doc);
+      // Add documents to appropriate categories, constructing full URL for path
+      for (final docMap in documents) {
+        // Make a copy of the map to modify
+        final map = Map<String, dynamic>.from(docMap);
+
+        if (map['path'] != null && !(map['path'] as String).startsWith('http')) {
+          map['path'] = '$baseUrl/files/${map['path']}'; // Adjust '/files/' to match your server's file-serving route
+        }
+
+        final document = Document.fromMap(map);
         MyVault.addDocument(document);
       }
 
@@ -234,40 +288,55 @@ class _MyVaultState extends State<MyVault> {
     }
   }
 
-  // ✅ Preview function for list
+  // ✅ Preview function for list (updated to handle remote URLs)
   Future<void> _previewFile(BuildContext context, String? path) async {
     if (path == null) return;
 
-    final file = File(path);
-    if (await file.exists()) {
-      final ext = path.split('.').last.toLowerCase();
+    final isRemote = path.startsWith('http');
 
-      if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].contains(ext)) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => Scaffold(
-              appBar: AppBar(title: const Text("Image Preview")),
-              body: Center(child: Image.file(file)),
-            ),
+    File? file;
+    String? localPath = path;
+
+    if (!isRemote) {
+      file = File(path);
+      if (!(await file.exists())) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("File does not exist")));
+        return;
+      }
+    }
+
+    final ext = path.split('.').last.toLowerCase();
+
+    if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].contains(ext)) {
+      Widget imageWidget = isRemote ? Image.network(path) : Image.file(file!);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text("Image Preview")),
+            body: Center(child: imageWidget),
           ),
-        );
-      } else {
-        final result = await OpenFile.open(file.path);
-        if (result.type != ResultType.done) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Cannot open file: ${result.message}")),
-          );
+        ),
+      );
+    } else {
+      if (isRemote) {
+        try {
+          localPath = await _downloadFile(path);
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error downloading file: $e")));
+          return;
         }
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("File does not exist")),
-      );
+
+      final result = await OpenFile.open(localPath!);
+      if (result.type != ResultType.done) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Cannot open file: ${result.message}")));
+      }
     }
   }
 
-  // 🔹 Section Widget
+  // 🔹 Section Widget (updated to optionally navigate to detail page; currently keeps your buttons, but consider using onTap for detail)
   Widget _buildSection(String title, List<Document> docs) {
     final query = _searchController.text.toLowerCase();
     final filteredDocs = docs.where((doc) {
@@ -283,50 +352,63 @@ class _MyVaultState extends State<MyVault> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title,
-              style: const TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
           const SizedBox(height: 8),
           ...filteredDocs.map((doc) {
             return Column(
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(doc.category,
-                              style: const TextStyle(
-                                  color: Colors.blue, fontSize: 12)),
-                          Text(doc.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold)),
-                          Text('Uploaded on ${doc.date}',
-                              style: const TextStyle(
-                                  color: Colors.grey, fontSize: 12)),
-                        ],
+                GestureDetector(
+                  onTap: () {
+                    // Optional: Navigate to detail page instead of inline buttons for better UX
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DocumentDetailPage(
+                          title: doc.title,
+                          category: doc.category,
+                          date: doc.date,
+                          path: doc.path,
+                          userEmail: widget.userEmail,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 80,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(8),
+                    ).then((refresh) {
+                      if (refresh == true) _loadDocumentsFromMongoDB();
+                    });
+                  },
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(doc.category, style: const TextStyle(color: Colors.blue, fontSize: 12)),
+                            Text(doc.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            Text('Uploaded on ${doc.date}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          ],
+                        ),
                       ),
-                      child: doc.path.isNotEmpty
-                          ? _buildFileThumbnail(doc.path)
-                          : const Icon(Icons.description, color: Colors.grey),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 80,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: doc.path?.isNotEmpty ?? false
+                            ? _buildFileThumbnail(doc.path!)
+                            : const Icon(Icons.description, color: Colors.grey),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 10),
 
-                // ✅ Buttons under each doc
+                // ✅ Buttons under each doc (kept, but consider removing if using detail page onTap)
                 Row(
                   children: [
                     TextButton.icon(
@@ -336,7 +418,7 @@ class _MyVaultState extends State<MyVault> {
                     ),
                     TextButton.icon(
                       onPressed: () async {
-                        // Delete from MongoDB
+                        // Delete from MongoDB/API
                         final success = await MongoDataBase.deleteDocument(
                           widget.userEmail,
                           doc.title,
@@ -344,15 +426,14 @@ class _MyVaultState extends State<MyVault> {
 
                         if (success) {
                           setState(() {
-                            MyVault.removeDocument(doc.path);
+                            MyVault.removeDocument(doc.path ?? '');
                           });
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("File deleted")),
                           );
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text("Failed to delete file")),
+                            const SnackBar(content: Text("Failed to delete file")),
                           );
                         }
                       },
@@ -398,7 +479,13 @@ class _MyVaultState extends State<MyVault> {
           // Document sections
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(
+              child: Lottie.asset(
+                'assets/LoadingClock.json',
+                width: 120,
+                height: 120,
+              ),
+            )
                 : ListView(
               children: [
                 _buildSection("Bills", MyVault._bills),
@@ -426,8 +513,7 @@ class _MyVaultState extends State<MyVault> {
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          UploadDocument(userEmail: widget.userEmail),
+                      builder: (context) => UploadDocument(userEmail: widget.userEmail),
                     ),
                   );
                   // Refresh documents after upload
