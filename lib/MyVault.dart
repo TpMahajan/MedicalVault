@@ -482,8 +482,8 @@ class _MyVaultState extends State<MyVault> {
                 ? Center(
               child: Lottie.asset(
                 'assets/LoadingClock.json',
-                width: 120,
-                height: 120,
+                width: 100,
+                height: 100,
               ),
             )
                 : ListView(
@@ -501,10 +501,14 @@ class _MyVaultState extends State<MyVault> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.blue, Colors.blueAccent],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF42A5F5), // Light Blue
+                    Color(0xFF26C6DA), // Cyan
+                    Color(0xFF80DEEA), // Light Teal
+                  ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -516,7 +520,6 @@ class _MyVaultState extends State<MyVault> {
                       builder: (context) => UploadDocument(userEmail: widget.userEmail),
                     ),
                   );
-                  // Refresh documents after upload
                   _loadDocumentsFromMongoDB();
                 },
                 icon: const Icon(Icons.upload, color: Colors.white),
@@ -534,6 +537,9 @@ class _MyVaultState extends State<MyVault> {
                 ),
               ),
             ),
+
+
+
           ),
         ],
       ),

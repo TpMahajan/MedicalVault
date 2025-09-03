@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart'; // ✅ added for animation
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dbHelper/mongodb.dart';
@@ -70,12 +72,13 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
     try {
       final result = await MongoDataBase.deleteDocument(
         widget.userEmail,
-        file["fileName"], // 👈 yeh pass karna hoga
+        file["fileName"],
       );
 
       if (result) {
         setState(() {
-          files.removeWhere((f) => f["_id"].toString() == file["_id"].toString());
+          files.removeWhere(
+                  (f) => f["_id"].toString() == file["_id"].toString());
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("✅ Document deleted successfully")),
@@ -92,7 +95,6 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -108,7 +110,13 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+        child: Lottie.asset(
+          "assets/LoadingClock.json", // ✅ custom animation
+          width: 100,
+          height: 100,
+        ),
+      )
           : files.isEmpty
           ? const Center(
         child: Column(
@@ -128,8 +136,8 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         itemBuilder: (context, index) {
           final file = files[index];
           return Card(
-            margin:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            margin: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 8),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12)),
             child: ListTile(
@@ -151,8 +159,7 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
                   IconButton(
                     icon:
                     const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () =>
-                        _deleteFile(file),
+                    onPressed: () => _deleteFile(file),
                     tooltip: "Delete",
                   ),
                 ],
