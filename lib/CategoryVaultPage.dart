@@ -99,10 +99,21 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
   /// ================= Delete Document =================
   Future<void> _deleteFile(Map<String, dynamic> file) async {
     try {
-      final success = await ApiService.deleteDocument(file["_id"].toString());
+      // Use the correct "id" field sent from backend
+      final docId = file["id"];
+      if (docId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("❌ Document ID is missing")),
+        );
+        return;
+      }
+
+      print("Deleting document with id: $docId"); // debug
+
+      final success = await ApiService.deleteDocument(docId.toString());
       if (success) {
         setState(() {
-          files.removeWhere((f) => f["_id"] == file["_id"]);
+          files.removeWhere((f) => f["id"] == docId);
         });
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text("✅ Document deleted")));

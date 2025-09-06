@@ -1,5 +1,9 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
 import 'UploadDocument.dart';
 import 'Document_model.dart';
 import 'api_service.dart';
@@ -26,8 +30,21 @@ class DocumentDetailPage extends StatelessWidget {
   }
 
   Future<void> _previewFile(BuildContext context) async {
-    if (document.path == null) return;
-    await ApiService.previewDocument(document);
+    if (document.path == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("File path is missing")),
+      );
+      return;
+    }
+
+    try {
+      await ApiService.previewDocument(document.path!); // ✅ pass full URL
+    } catch (e) {
+      print("❌ Error previewing document: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ Error previewing document: $e")),
+      );
+    }
   }
 
   @override
@@ -78,7 +95,6 @@ class MyVault extends StatefulWidget {
 
   const MyVault({super.key, required this.userEmail, required this.userId});
 
-  // ✅ Static lists and methods for global access
   static final List<Document> _allDocuments = [];
 
   static void addDocument(Document doc) {
@@ -198,11 +214,22 @@ class _MyVaultState extends State<MyVault> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
+                    // ✅ Preview button using document.path
                     TextButton.icon(
-                      onPressed: () => ApiService.previewDocument(doc),
+                      onPressed: () async {
+                        if (doc.path == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("File path is missing")),
+                          );
+                          return;
+                        }
+                        await ApiService.previewDocument(doc.path!);
+                      },
                       icon: const Icon(Icons.preview, color: Colors.blue),
                       label: const Text("Preview"),
                     ),
+
+                    // ✅ Delete button
                     TextButton.icon(
                       onPressed: () async {
                         if (doc.id == null) return;

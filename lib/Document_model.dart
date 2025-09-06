@@ -3,7 +3,7 @@ class Document {
   final String title;
   final String category;
   final String date;
-  final String? path;     // full URL for preview/download
+  final String? path;     // full usable URL for preview/download
   final String? url;      // raw URL from backend (/uploads/...)
   final String? notes;
 
@@ -17,15 +17,15 @@ class Document {
     this.notes,
   });
 
-  /// From API response
+  /// ================= From API Response =================
   factory Document.fromApi(Map<String, dynamic> json) {
-    const baseUrl = "http://192.168.31.166:5000"; // 👈 tumhare PC ka IP
+    const baseUrl = "http://192.168.31.166:5000"; // your PC / server IP
 
     String? fileUrl = json['url'];
     String? computedPath;
 
     if (fileUrl != null) {
-      // agar backend sirf relative path bhejta hai (/uploads/xyz.pdf)
+      // if backend gives relative path (/uploads/xyz.pdf), prepend baseUrl
       if (!fileUrl.startsWith("http")) {
         computedPath = "$baseUrl$fileUrl";
       } else {
@@ -34,17 +34,17 @@ class Document {
     }
 
     return Document(
-      id: json['_id']?.toString(),
+      id: json['id']?.toString(),
       title: json['title'] ?? json['fileName'] ?? "Untitled",
       category: json['category'] ?? "Other",
       date: json['date'] ?? "",
-      path: computedPath,   // 👈 always usable URL
-      url: fileUrl,         // 👈 raw backend url bhi save
+      path: computedPath,   // ✅ full URL ready for preview/download
+      url: fileUrl,         // ✅ raw backend url
       notes: json['notes'] ?? "",
     );
   }
 
-  /// To API Map (agar future me update bhejna ho)
+  /// ================= To API Map (if needed for upload/update) =================
   Map<String, dynamic> toApiMap() {
     return {
       'id': id,
