@@ -3,11 +3,19 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
-import 'dbHelper/mongodb.dart'; // ✅ use your MongoDB helper
+import 'api_service.dart';
+import 'MyVault.dart';
+import 'Document_model.dart';
 
 class UploadDocument extends StatefulWidget {
-  final String userEmail;
-  const UploadDocument({super.key, required this.userEmail});
+  final String userId;      // MongoDB userId
+  final String userEmail;   // User email
+
+  const UploadDocument({
+    super.key,
+    required this.userId,
+    required this.userEmail,
+  });
 
   @override
   State<UploadDocument> createState() => _UploadDocumentState();
@@ -61,47 +69,52 @@ class _UploadDocumentState extends State<UploadDocument> {
         ? _titleController.text
         : _selectedFile!.path.split('/').last;
 
-    final category = _selectedCategory!;
+    final category = _selectedCategory!.trim();
     final date = _selectedDate != null
         ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
         : DateFormat('yyyy-MM-dd').format(DateTime.now());
     final notes = _notesController.text;
-    final fileType = _selectedFile!.path.split('.').last;
 
     try {
-      // ✅ MongoDB save
-      await MongoDataBase.uploadDocument(
-        widget.userEmail,
-        fileName,
-        fileType,
-        category,
-        _fileBytes!,
+      print("⬆️ Uploading file: ${_selectedFile!.path}");
+      print("Fields: userId=$widget.userId, email=${widget.userEmail}, title=$fileName, category=$category, date=$date, notes=$notes");
+
+      final response = await ApiService.uploadDocument(
+        file: _selectedFile!,
+        userId: widget.userId,
+        userEmail: widget.userEmail,
         title: fileName,
-        notes: notes,
+        category: category,
         date: date,
+        notes: notes,
       );
 
-      // ✅ Document metadata banake MyVault me bhej do
-      final newDoc = {
-        "title": fileName,
-        "category": category,
-        "date": date,
-        "notes": notes,
-        "path": _selectedFile!.path, // local preview ke liye
-        "fileType": fileType,
-      };
+      print("⬅️ API Response: $response");
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Document uploaded successfully!")),
-      );
+      if (response != null) {
+        final docData = response['file'] ?? response; // adjust depending on backend
+        final doc = Document.fromApi(docData as Map<String, dynamic>);
 
-      Navigator.pop(context, newDoc); // 👈 return document data
+        MyVault.addDocument(doc);
+
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("✅ Document uploaded successfully!")),
+          );
+          Navigator.pop(context, true);
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("❌ Upload failed! Check console for details.")),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Error uploading document: $e")),
+        SnackBar(content: Text("❌ Error uploading: $e")),
       );
     } finally {
-      setState(() => _isUploading = false);
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -113,7 +126,6 @@ class _UploadDocumentState extends State<UploadDocument> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Title
             TextField(
               controller: _titleController,
               decoration: InputDecoration(
@@ -125,8 +137,6 @@ class _UploadDocumentState extends State<UploadDocument> {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Category
             DropdownButtonFormField<String>(
               value: _selectedCategory,
               decoration: InputDecoration(
@@ -137,14 +147,11 @@ class _UploadDocumentState extends State<UploadDocument> {
                 ),
               ),
               items: ["Reports", "Prescription", "Bills", "Insurance"]
-                  .map((cat) =>
-                  DropdownMenuItem(value: cat, child: Text(cat)))
+                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
                   .toList(),
               onChanged: (val) => setState(() => _selectedCategory = val),
             ),
             const SizedBox(height: 12),
-
-            // Date
             GestureDetector(
               onTap: _pickDate,
               child: AbsorbPointer(
@@ -165,8 +172,6 @@ class _UploadDocumentState extends State<UploadDocument> {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Notes
             TextField(
               controller: _notesController,
               maxLines: 3,
@@ -179,8 +184,6 @@ class _UploadDocumentState extends State<UploadDocument> {
               ),
             ),
             const SizedBox(height: 12),
-
-            // File picker
             Row(
               children: [
                 IconButton(
@@ -197,10 +200,7 @@ class _UploadDocumentState extends State<UploadDocument> {
                 ),
               ],
             ),
-
             const Spacer(),
-
-            // Save button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(

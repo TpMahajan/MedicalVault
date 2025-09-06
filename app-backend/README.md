@@ -32,7 +32,7 @@ A secure, production-ready Node.js backend with MongoDB, JWT authentication, and
 
 3. **Set up environment variables:**
    ```bash
-   cp env.example .env
+   cp env.example.bak .env
    ```
    
    Edit `.env` with your configuration:

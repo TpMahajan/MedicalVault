@@ -1,10 +1,35 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hello/dashboard1.dart';
 import 'package:hello/SignUp.dart';
-import 'package:hello/dbHelper/mongodb.dart';
+import 'package:http/http.dart' as http;
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
+
+  static const String baseUrl = "http://192.168.31.166:5000/api";
+
+  Future<Map<String, dynamic>?> loginUser(String email, String password) async {
+    try {
+      final url = Uri.parse("$baseUrl/auth/login");
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": email, "password": password}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data["user"];
+      } else {
+        print("Login failed: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      print("Error logging in: $e");
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,16 +37,15 @@ class LoginScreen extends StatelessWidget {
     TextEditingController Password = TextEditingController();
 
     return Scaffold(
-      resizeToAvoidBottomInset: true, // 👈 keyboard ke liye
+      resizeToAvoidBottomInset: true,
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView( // 👈 overflow fix
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 60),
-              // Logo and title
               Center(
                 child: Column(
                   children: [
@@ -54,7 +78,6 @@ class LoginScreen extends StatelessWidget {
               ),
               const SizedBox(height: 40),
 
-              // Email field
               TextField(
                 controller: Email,
                 decoration: InputDecoration(
@@ -68,8 +91,6 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Password field
               TextField(
                 controller: Password,
                 obscureText: true,
@@ -84,8 +105,6 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-
-              // Log In button with gradient
               Container(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
@@ -97,7 +116,7 @@ class LoginScreen extends StatelessWidget {
                 ),
                 child: ElevatedButton(
                   onPressed: () async {
-                    String email = Email.text.trim();
+                    String email = Email.text.trim().toLowerCase();
                     String password = Password.text.trim();
 
                     if (email.isEmpty || password.isEmpty) {
@@ -107,19 +126,22 @@ class LoginScreen extends StatelessWidget {
                       return;
                     }
 
-                    Map<String, dynamic>? userData =
-                    await MongoDataBase.loginUser(email, password);
+                    Map<String, dynamic>? userData = await loginUser(email, password);
 
                     if (userData != null) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("✅ Login successful")),
                       );
-                      // ✅ Login successful → Dashboard pe user info bhejna
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => Dashboard1(
-                            userData: userData, // pura user data pass kar diya
+                            userData: {
+                              "id": userData["id"].toString(),
+                              "name": userData["name"],
+                              "email": userData["email"],
+                            },
                           ),
                         ),
                       );
@@ -144,8 +166,6 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Sign up link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -154,8 +174,7 @@ class LoginScreen extends StatelessWidget {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                            builder: (context) => const SignUpPage()),
+                        MaterialPageRoute(builder: (context) => const SignUpPage()),
                       );
                     },
                     child: const Text(
@@ -165,7 +184,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 20), // 👈 Spacer ki jagah safe space
+              const SizedBox(height: 20),
             ],
           ),
         ),

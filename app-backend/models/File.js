@@ -2,17 +2,17 @@ import mongoose from "mongoose";
 
 const fileSchema = new mongoose.Schema(
   {
-    originalName: { type: String, required: true },
-    storedName: { type: String, required: true },
-    mimeType: { type: String },
-    size: { type: Number },
-    path: { type: String },
-    url: { type: String },
-    category: {
-          type: String,
-          enum: ["Prescription", "Report", "Bill", "Other"], // 👈 predefined categories
-          default: "Other",
-        },
+    userId: { type: String, required: true }, // user email
+    title: { type: String },
+    notes: { type: String },
+    date: { type: String },
+    originalName: String,
+    storedName: String,
+    mimeType: String,
+    size: Number,
+    path: String,
+    url: String,
+    category: { type: String, default: "Other" },
   },
   { timestamps: true }
 );

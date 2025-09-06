@@ -2,10 +2,11 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart'; // ✅ added for animation
+import 'package:lottie/lottie.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dbHelper/mongodb.dart';
+import 'api_service.dart';
+import 'Document_model.dart';
 
 class CategoryVaultPage extends StatefulWidget {
   final String category;
@@ -31,68 +32,117 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
     _loadFiles();
   }
 
+  /// ================= Load Documents by Category =================
   Future<void> _loadFiles() async {
     setState(() => _isLoading = true);
 
-    final docs = await MongoDataBase.getDocumentsByCategory(
-      widget.userEmail,
-      widget.category,
-    );
+    try {
+      final docs = await ApiService.fetchDocuments(
+        category: widget.category,
+        userEmail: widget.userEmail,
+      );
 
-    setState(() {
-      files = docs;
-      _isLoading = false;
-    });
+      setState(() {
+        files = docs.map((e) => Map<String, dynamic>.from(e)).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      print("⚠️ Error loading files: $e");
+    }
   }
 
+  /// ================= Open / Preview File =================
   Future<void> _openFile(Map<String, dynamic> file) async {
     try {
-      List<int> fileBytes = List<int>.from(file["fileBytes"] ?? []);
-      if (fileBytes.isEmpty) {
+      final fileUrl = file['url'];
+      if (fileUrl == null || fileUrl.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("⚠ File data missing")),
+          const SnackBar(content: Text("⚠ File URL is missing")),
         );
         return;
       }
 
-      final dir = await getTemporaryDirectory();
-      final path = "${dir.path}/${file['fileName']}";
-      File tempFile = File(path);
+      final fullUrl = fileUrl.startsWith("http")
+          ? fileUrl
+          : "http://192.168.31.166:5000$fileUrl"; // 👈 Server ka base URL lagao
 
-      await tempFile.writeAsBytes(fileBytes);
-      await OpenFile.open(tempFile.path);
+      final uri = Uri.parse(fullUrl);
+      final httpClient = HttpClient();
+      final request = await httpClient.getUrl(uri);
+      final response = await request.close();
+
+      if (response.statusCode == 200) {
+        final bytes = await consolidateHttpClientResponseBytes(response);
+        final dir = await getTemporaryDirectory();
+        final path = "${dir.path}/${file['fileName']}";
+        final tempFile = File(path);
+        await tempFile.writeAsBytes(bytes, flush: true);
+        await OpenFile.open(tempFile.path);
+      } else {
+        print("❌ Failed to fetch file: ${response.statusCode}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Failed to fetch file: ${response.statusCode}")),
+        );
+      }
     } catch (e) {
+      print("⚠️ Error opening file: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("❌ Error opening file: $e")),
       );
     }
   }
 
+
+
+
+  /// ================= Delete Document =================
   Future<void> _deleteFile(Map<String, dynamic> file) async {
     try {
-      final result = await MongoDataBase.deleteDocument(
-        widget.userEmail,
-        file["fileName"],
-      );
-
-      if (result) {
+      final success = await ApiService.deleteDocument(file["_id"].toString());
+      if (success) {
         setState(() {
-          files.removeWhere(
-                  (f) => f["_id"].toString() == file["_id"].toString());
+          files.removeWhere((f) => f["_id"] == file["_id"]);
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("✅ Document deleted successfully")),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text("✅ Document deleted")));
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("❌ Failed to delete document")),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text("❌ Failed to delete document")));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Error deleting file: $e")),
-      );
+      print("⚠️ Error deleting file: $e");
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("❌ Error deleting file: $e")));
     }
+  }
+
+  /// ================= Thumbnail Builder =================
+  Widget _buildThumbnail(Map<String, dynamic> file) {
+    final type = file['fileType']?.toString().toLowerCase() ?? "";
+    if (type.contains("image")) {
+      try {
+        List<int> fileBytes = List<int>.from(file["fileBytes"] ?? []);
+        if (fileBytes.isNotEmpty) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.memory(
+              fileBytes as Uint8List,
+              width: 50,
+              height: 50,
+              fit: BoxFit.cover,
+            ),
+          );
+        }
+      } catch (_) {
+        return const Icon(Icons.image, color: Colors.green, size: 32);
+      }
+    } else if (type.contains("pdf")) {
+      return const Icon(Icons.picture_as_pdf, color: Colors.red, size: 40);
+    } else if (type.contains("doc")) {
+      return const Icon(Icons.description, color: Colors.blue, size: 40);
+    }
+    return const Icon(Icons.insert_drive_file, color: Colors.grey, size: 40);
   }
 
   @override
@@ -112,7 +162,7 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
       body: _isLoading
           ? Center(
         child: Lottie.asset(
-          "assets/LoadingClock.json", // ✅ custom animation
+          "assets/LoadingClock.json",
           width: 100,
           height: 100,
         ),
@@ -136,8 +186,7 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         itemBuilder: (context, index) {
           final file = files[index];
           return Card(
-            margin: const EdgeInsets.symmetric(
-                horizontal: 12, vertical: 8),
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12)),
             child: ListTile(
@@ -151,14 +200,12 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
                 spacing: 8,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.remove_red_eye,
-                        color: Colors.blue),
+                    icon: const Icon(Icons.remove_red_eye, color: Colors.blue),
                     onPressed: () => _openFile(file),
                     tooltip: "Preview",
                   ),
                   IconButton(
-                    icon:
-                    const Icon(Icons.delete, color: Colors.red),
+                    icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () => _deleteFile(file),
                     tooltip: "Delete",
                   ),
@@ -169,34 +216,5 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         },
       ),
     );
-  }
-
-  /// 🔹 Thumbnail Builder
-  Widget _buildThumbnail(Map<String, dynamic> file) {
-    final type = file['fileType']?.toString().toLowerCase() ?? "";
-    if (type.contains("image")) {
-      try {
-        List<int> fileBytes = List<int>.from(file["fileBytes"] ?? []);
-        if (fileBytes.isNotEmpty) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: Image.memory(
-              fileBytes as Uint8List,
-              width: 50,
-              height: 50,
-              fit: BoxFit.cover,
-            ),
-          );
-        }
-      } catch (e) {
-        return const Icon(Icons.image, color: Colors.green, size: 32);
-      }
-    } else if (type.contains("pdf")) {
-      return const Icon(Icons.picture_as_pdf, color: Colors.red, size: 40);
-    } else if (type.contains("doc")) {
-      return const Icon(Icons.description, color: Colors.blue, size: 40);
-    }
-    return const Icon(Icons.insert_drive_file,
-        color: Colors.grey, size: 40);
   }
 }

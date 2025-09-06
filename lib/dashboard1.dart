@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-
+import 'api_service.dart';
 import 'AppFooter.dart';
 import 'CategoryVaultPage.dart';
 import 'MyVault.dart';
 import 'QR.dart';
 import 'Requests.dart';
 import 'Settings.dart';
-import 'dbHelper/mongodb.dart';
 
 class Dashboard1 extends StatefulWidget {
-  final Map<String, dynamic> userData; // 👈 MongoDB login/signup data
+  final Map<String, dynamic> userData;
 
   const Dashboard1({super.key, required this.userData});
 
@@ -41,11 +38,23 @@ class _Dashboard1State extends State<Dashboard1> {
     super.dispose();
   }
 
-  /// 🔹 Load counts from MongoDB
   Future<void> _loadDocumentCounts() async {
     try {
-      final counts = await MongoDataBase.getDocumentCountByCategory(
-          widget.userData["email"]);
+      Map<String, int> counts = {
+        "Reports": 0,
+        "Prescription": 0,
+        "Bills": 0,
+        "Insurance": 0,
+      };
+
+      for (var category in counts.keys) {
+        final docs = await ApiService.fetchDocuments(
+          category: category,
+          userEmail: widget.userData["email"],
+        );
+        counts[category] = docs.length;
+      }
+
       setState(() {
         _documentCounts = counts;
         _isLoadingCounts = false;
@@ -80,7 +89,7 @@ class _Dashboard1State extends State<Dashboard1> {
         children: [
           // 🏠 Dashboard tab
           RefreshIndicator(
-            onRefresh: _loadDocumentCounts, // 👈 pull to refresh
+            onRefresh: _loadDocumentCounts,
             child: ListView(
               padding: const EdgeInsets.all(30.0),
               children: [
@@ -100,13 +109,11 @@ class _Dashboard1State extends State<Dashboard1> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Quick Actions',
-                  style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500),
-                ),
+                const Text("Quick Actions",
+                    style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500)),
                 const SizedBox(height: 8),
                 ListTile(
                   leading: const CircleAvatar(
@@ -138,34 +145,29 @@ class _Dashboard1State extends State<Dashboard1> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'My Documents',
-                      style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
+                    const Text('My Documents',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
                     if (!_isLoadingCounts)
                       Text(
                         '${_documentCounts.values.fold(0, (sum, count) => sum + count)} total',
                         style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w500,
-                        ),
+                            fontSize: 14,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w500),
                       ),
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // 📂 Category Grid
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: 4,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2, // 2 columns
+                    crossAxisCount: 2,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
-                    childAspectRatio: 1, // 👈 fix ratio (1 = square cards)
+                    childAspectRatio: 1,
                   ),
                   itemBuilder: (context, index) {
                     final categories = [
@@ -210,20 +212,16 @@ class _Dashboard1State extends State<Dashboard1> {
           ),
 
           // 🔐 Vault tab
-          MyVault(userEmail: widget.userData["email"]),
+          MyVault(
+            userId: widget.userData["id"],       // ✅ safe string
+            userEmail: widget.userData["email"],
+          ),
 
-          // QR tab
           QRPage(),
-
-          // Requests tab
           RequestsPage(),
-
-          // Settings tab
           SettingsPage(userData: widget.userData),
         ],
       ),
-
-      // ⬇️ Bottom Navbar + Footer
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -234,33 +232,16 @@ class _Dashboard1State extends State<Dashboard1> {
               setState(() {
                 _currentIndex = index;
               });
-              _pageController.animateToPage(
-                index,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
+              _pageController.animateToPage(index,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut);
             },
             items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home),
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.lock),
-                label: 'Vault',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.qr_code),
-                label: 'QR',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.list_alt),
-                label: 'Requests',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.settings),
-                label: 'Settings',
-              ),
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+              BottomNavigationBarItem(icon: Icon(Icons.lock), label: 'Vault'),
+              BottomNavigationBarItem(icon: Icon(Icons.qr_code), label: 'QR'),
+              BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Requests'),
+              BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
             ],
             selectedItemColor: Colors.blue,
             unselectedItemColor: Colors.grey,
@@ -271,7 +252,6 @@ class _Dashboard1State extends State<Dashboard1> {
     );
   }
 
-  /// 🔹 Reusable card builder
   Widget _buildCategoryCard(BuildContext context,
       {required String title,
         required String imagePath,
@@ -279,7 +259,6 @@ class _Dashboard1State extends State<Dashboard1> {
         required int count}) {
     return GestureDetector(
       onTap: () async {
-        // ✅ Go to category page and refresh counts when coming back
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -289,7 +268,7 @@ class _Dashboard1State extends State<Dashboard1> {
             ),
           ),
         );
-        _loadDocumentCounts(); // refresh after returning
+        _loadDocumentCounts();
       },
       child: Card(
         elevation: 2,
