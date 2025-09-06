@@ -11,31 +11,39 @@ class ApiService {
   static const String baseUrl = "https://healthvault-backend-c6xl.onrender.com/api";
 
   // ================= Preview Document =================
-  static Future<void> previewDocument(String fileUrl) async {
+  // ================= Preview Document =================
+  static Future<void> previewDocument(String filePath) async {
     try {
-      final fullUrl = fileUrl.startsWith("http")
-          ? fileUrl
-          : "https://healthvault-backend-c6xl.onrender.com$fileUrl";
+      // Normalize slashes
+      String normalizedPath = filePath.replaceAll("\\", "/");
 
-      final response = await http.get(Uri.parse(fullUrl));
+      // Build full URL
+      final fullUrl = normalizedPath.startsWith("http")
+          ? normalizedPath
+          : "${baseUrl.replaceAll("/api", "")}/$normalizedPath";
+
+      print("📂 Previewing: $fullUrl"); // debug log
+
+      final uri = Uri.parse(fullUrl);
+      final httpClient = HttpClient();
+      final request = await httpClient.getUrl(uri);
+      final response = await request.close();
 
       if (response.statusCode == 200) {
-        final bytes = response.bodyBytes;
+        final bytes = await consolidateHttpClientResponseBytes(response);
         final dir = await getTemporaryDirectory();
-        final fileName = Uri.parse(fullUrl).pathSegments.isNotEmpty
-            ? Uri.parse(fullUrl).pathSegments.last
-            : "temp_file";
+        final fileName = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : "temp_file";
         final tempFile = File("${dir.path}/$fileName");
-
         await tempFile.writeAsBytes(bytes, flush: true);
         await OpenFile.open(tempFile.path);
       } else {
-        throw Exception("Failed to fetch file: ${response.statusCode}");
+        throw "Failed to fetch file: ${response.statusCode}";
       }
     } catch (e) {
-      debugPrint("❌ Error previewing document: $e");
+      print("❌ Error previewing document: $e");
     }
   }
+
 
   // ================= Delete Document =================
   static Future<bool> deleteDocument(String docId) async {
