@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'api_service.dart';
-import 'MyVault.dart';
 import 'Document_model.dart';
 
 class UploadDocument extends StatefulWidget {
@@ -76,9 +75,6 @@ class _UploadDocumentState extends State<UploadDocument> {
     final notes = _notesController.text;
 
     try {
-      print("⬆️ Uploading file: ${_selectedFile!.path}");
-      print("Fields: userId=$widget.userId, email=${widget.userEmail}, title=$fileName, category=$category, date=$date, notes=$notes");
-
       final response = await ApiService.uploadDocument(
         file: _selectedFile!,
         userId: widget.userId,
@@ -89,24 +85,19 @@ class _UploadDocumentState extends State<UploadDocument> {
         notes: notes,
       );
 
-      print("⬅️ API Response: $response");
-
       if (response != null) {
-        final docData = response['file'] ?? response; // adjust depending on backend
-        final doc = Document.fromApi(docData as Map<String, dynamic>);
-
-        MyVault.addDocument(doc);
+        final docData = response['file'] ?? response; // adjust if backend uses 'file'
+        final uploadedDoc = Document.fromApi(docData as Map<String, dynamic>);
 
         if (mounted) {
-          setState(() {});
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("✅ Document uploaded successfully!")),
           );
-          Navigator.pop(context, true);
+          Navigator.pop(context, uploadedDoc); // send back uploaded document
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("❌ Upload failed! Check console for details.")),
+          const SnackBar(content: Text("❌ Upload failed!")),
         );
       }
     } catch (e) {

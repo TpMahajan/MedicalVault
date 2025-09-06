@@ -7,15 +7,13 @@ import 'package:path_provider/path_provider.dart';
 import 'Document_model.dart';
 
 class ApiService {
-  static const String serverIP = "192.168.31.166"; // your PC/LAN IP
+  static const String serverIP = "192.168.31.166"; // your backend IP
   static final String baseUrl = "http://$serverIP:5000/api";
 
   // ================= Preview Document =================
   static Future<void> previewDocument(String fileUrl) async {
     try {
-      // ensure full URL
       final fullUrl = fileUrl.startsWith("http") ? fileUrl : "http://$serverIP:5000$fileUrl";
-
       final uri = Uri.parse(fullUrl);
       final httpClient = HttpClient();
       final request = await httpClient.getUrl(uri);
@@ -40,7 +38,6 @@ class ApiService {
   static Future<bool> deleteDocument(String docId) async {
     try {
       final url = Uri.parse("$baseUrl/files/$docId");
-      print("Deleting document at: $url"); // 🔍 debug
       final response = await http.delete(url);
 
       if (response.statusCode == 200) {
@@ -62,10 +59,7 @@ class ApiService {
     required String userEmail,
   }) async {
     try {
-      final uri = Uri.parse(
-        "$baseUrl/files?category=${category ?? ''}&email=$userEmail",
-      );
-
+      final uri = Uri.parse("$baseUrl/files?category=${category ?? ''}&email=$userEmail");
       final response = await http.get(uri);
 
       if (response.statusCode == 200) {
@@ -107,8 +101,6 @@ class ApiService {
 
       final response = await request.send();
       final respStr = await response.stream.bytesToString();
-
-      print("⬅️ Upload response: ${response.statusCode} $respStr");
 
       final jsonResponse = json.decode(respStr);
       if (response.statusCode == 200 || response.statusCode == 201) {

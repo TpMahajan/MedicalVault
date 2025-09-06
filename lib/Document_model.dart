@@ -1,59 +1,39 @@
 class Document {
-  final String? id;       // backend _id
+  final String? id;
   final String title;
-  final String category;
-  final String date;
-  final String? path;     // full usable URL for preview/download
-  final String? url;      // raw URL from backend (/uploads/...)
-  final String? notes;
+  final String? path;
+  final String? date;
+  final String? url;
+  final String? category;
 
   Document({
     this.id,
     required this.title,
-    required this.category,
-    required this.date,
     this.path,
+    this.date,
     this.url,
-    this.notes,
+    this.category,
   });
 
-  /// ================= From API Response =================
   factory Document.fromApi(Map<String, dynamic> json) {
-    const baseUrl = "http://192.168.31.166:5000"; // your PC / server IP
-
-    String? fileUrl = json['url'];
-    String? computedPath;
-
-    if (fileUrl != null) {
-      // if backend gives relative path (/uploads/xyz.pdf), prepend baseUrl
-      if (!fileUrl.startsWith("http")) {
-        computedPath = "$baseUrl$fileUrl";
-      } else {
-        computedPath = fileUrl;
-      }
-    }
-
     return Document(
-      id: json['id']?.toString(),
-      title: json['title'] ?? json['fileName'] ?? "Untitled",
-      category: json['category'] ?? "Other",
-      date: json['date'] ?? "",
-      path: computedPath,   // ✅ full URL ready for preview/download
-      url: fileUrl,         // ✅ raw backend url
-      notes: json['notes'] ?? "",
+      id: json['id'] ?? json['_id'],
+      title: json['title'] ?? json['fileName'] ?? 'Untitled',
+      path: json['path'] ?? '',
+      date: json['date'] ?? '',
+      url: json['url'] ?? '',
+      category: json['category'] ?? 'Other',
     );
   }
 
-  /// ================= To API Map (if needed for upload/update) =================
-  Map<String, dynamic> toApiMap() {
+  Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'title': title,
-      'category': category,
-      'date': date,
-      'path': path,
-      'url': url,
-      'notes': notes,
+      "id": id,
+      "title": title,
+      "path": path,
+      "date": date,
+      "url": url,
+      "category": category,
     };
   }
 }

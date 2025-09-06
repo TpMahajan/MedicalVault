@@ -30,7 +30,8 @@ class DocumentDetailPage extends StatelessWidget {
   }
 
   Future<void> _previewFile(BuildContext context) async {
-    if (document.path == null) {
+    final path = document.path;
+    if (path == null || path.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("File path is missing")),
       );
@@ -38,7 +39,7 @@ class DocumentDetailPage extends StatelessWidget {
     }
 
     try {
-      await ApiService.previewDocument(document.path!); // ✅ pass full URL
+      await ApiService.previewDocument(path); // pass String path
     } catch (e) {
       print("❌ Error previewing document: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -50,19 +51,19 @@ class DocumentDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(document.title)),
+      appBar: AppBar(title: Text(document.title ?? "Untitled")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Category: ${document.category}",
+            Text("Category: ${document.category ?? 'Unknown'}",
                 style: const TextStyle(fontSize: 18)),
             const SizedBox(height: 10),
-            Text("Uploaded on: ${document.date}",
+            Text("Uploaded on: ${document.date ?? 'Unknown'}",
                 style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 20),
-            if (document.path != null) ...[
+            if (document.path != null && document.path!.isNotEmpty) ...[
               Row(
                 children: [
                   ElevatedButton.icon(
@@ -74,8 +75,8 @@ class DocumentDetailPage extends StatelessWidget {
                   ElevatedButton.icon(
                     onPressed: () => _deleteFile(context),
                     icon: const Icon(Icons.delete),
-                    style:
-                    ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red),
                     label: const Text("Delete"),
                   ),
                 ],
@@ -97,19 +98,15 @@ class MyVault extends StatefulWidget {
 
   static final List<Document> _allDocuments = [];
 
-  static void addDocument(Document doc) {
-    _allDocuments.add(doc);
-  }
+  static void addDocument(Document doc) => _allDocuments.add(doc);
+  static void removeDocument(String docId) =>
+      _allDocuments.removeWhere((doc) => doc.id == docId);
 
-  static void removeDocument(String docId) {
-    _allDocuments.removeWhere((doc) => doc.id == docId);
-  }
-
-  static List<Document> getDocumentsByCategory(String category) {
-    return _allDocuments
-        .where((doc) => doc.category.toLowerCase() == category.toLowerCase())
-        .toList();
-  }
+  static List<Document> getDocumentsByCategory(String category) =>
+      _allDocuments
+          .where((doc) =>
+      (doc.category ?? '').toLowerCase() == category.toLowerCase())
+          .toList();
 
   @override
   State<MyVault> createState() => _MyVaultState();
@@ -140,10 +137,10 @@ class _MyVaultState extends State<MyVault> {
 
     try {
       for (var category in _categories) {
-        final docs = await ApiService.fetchDocuments(
-            category: category, userEmail: widget.userEmail);
+        final docs =
+        await ApiService.fetchDocuments(category: category, userEmail: widget.userEmail);
         for (final doc in docs) {
-          final document = Document.fromApi(doc);
+          final document = Document.fromApi(doc); // Map<String,dynamic> -> Document
           MyVault.addDocument(document);
         }
       }
@@ -157,7 +154,7 @@ class _MyVaultState extends State<MyVault> {
   Widget _buildSection(String title) {
     final query = _searchController.text.toLowerCase();
     final docs = MyVault.getDocumentsByCategory(title)
-        .where((doc) => doc.title.toLowerCase().contains(query))
+        .where((doc) => (doc.title ?? '').toLowerCase().contains(query))
         .toList();
 
     if (docs.isEmpty) return const SizedBox();
@@ -191,59 +188,55 @@ class _MyVaultState extends State<MyVault> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(doc.category,
+                            Text(doc.category ?? 'Unknown',
                                 style: const TextStyle(
                                     color: Colors.blue, fontSize: 12)),
-                            Text(doc.title,
+                            Text(doc.title ?? 'Untitled',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                     fontSize: 16, fontWeight: FontWeight.bold)),
-                            Text('Uploaded on ${doc.date}',
+                            Text('Uploaded on ${doc.date ?? 'Unknown'}',
                                 style: const TextStyle(
                                     color: Colors.grey, fontSize: 12)),
                           ],
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(Icons.description,
-                          color: Colors.grey, size: 40),
+                      const Icon(Icons.description, color: Colors.grey, size: 40),
                     ],
                   ),
                 ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    // ✅ Preview button using document.path
                     TextButton.icon(
                       onPressed: () async {
-                        if (doc.path == null) {
+                        final path = doc.path;
+                        if (path == null || path.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("File path is missing")),
-                          );
+                              const SnackBar(content: Text("File path is missing")));
                           return;
                         }
-                        await ApiService.previewDocument(doc.path!);
+                        await ApiService.previewDocument(path);
                       },
                       icon: const Icon(Icons.preview, color: Colors.blue),
                       label: const Text("Preview"),
                     ),
-
-                    // ✅ Delete button
                     TextButton.icon(
                       onPressed: () async {
-                        if (doc.id == null) return;
-                        final success = await ApiService.deleteDocument(doc.id!);
+                        final id = doc.id;
+                        if (id == null) return;
+                        final success = await ApiService.deleteDocument(id);
                         if (success) {
                           setState(() {
-                            MyVault.removeDocument(doc.id!);
+                            MyVault.removeDocument(id);
                           });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("File deleted")));
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(const SnackBar(content: Text("File deleted")));
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text("Failed to delete file")));
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(const SnackBar(content: Text("Failed to delete file")));
                         }
                       },
                       icon: const Icon(Icons.delete, color: Colors.red),
@@ -285,12 +278,11 @@ class _MyVaultState extends State<MyVault> {
           Expanded(
             child: _isLoading
                 ? Center(
-              child: Lottie.asset(
-                'assets/LoadingClock.json',
-                width: 100,
-                height: 100,
-              ),
-            )
+                child: Lottie.asset(
+                  'assets/LoadingClock.json',
+                  width: 100,
+                  height: 100,
+                ))
                 : ListView(
               children: _categories.map((cat) => _buildSection(cat)).toList(),
             ),
