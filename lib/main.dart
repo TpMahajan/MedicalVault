@@ -48,7 +48,7 @@ class WelcomeScreen extends StatelessWidget {
                   end: Alignment.bottomRight,
                 ).createShader(bounds),
                 child: const Text(
-                  'Welcome to Health Vault',
+                  'Welcome to Medical Vault',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 28,
