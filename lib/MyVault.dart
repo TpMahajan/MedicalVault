@@ -45,23 +45,36 @@ class DocumentDetailPage extends StatelessWidget {
       }
 
       // 📂 Request storage permission
-      if (await Permission.storage.request().isDenied) {
+      Future<bool> _requestPermission() async {
+        if (Platform.isAndroid) {
+          if (await Permission.manageExternalStorage.isDenied) {
+            final status = await Permission.manageExternalStorage.request();
+            return status.isGranted;
+          }
+          return true;
+        } else {
+          final status = await Permission.storage.request();
+          return status.isGranted;
+        }
+      }
+
+      if (!await _requestPermission()) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Storage permission denied")),
         );
         return;
       }
 
-      // 📂 Get Downloads folder
-      Directory? downloadsDir;
+      // 📂 Get Downloads folder safely
+      Directory downloadsDir;
       if (Platform.isAndroid) {
-        downloadsDir = Directory('/storage/emulated/0/Download');
+        downloadsDir = (await getExternalStorageDirectory())!;
       } else {
         downloadsDir = await getApplicationDocumentsDirectory();
       }
 
-      String fileName = document.title ?? "document";
-      String savePath = "${downloadsDir.path}/$fileName.pdf";
+      String fileName = "${document.title ?? "document"}.pdf";
+      String savePath = "${downloadsDir.path}/$fileName";
 
       // ✅ Prepend server URL
       String fileUrl = document.path!;
@@ -69,7 +82,7 @@ class DocumentDetailPage extends StatelessWidget {
         fileUrl = "https://healthvault-backend-c6xl.onrender.com/$fileUrl";
       }
 
-      // Encode URL to handle spaces and special characters
+      // Encode URL to handle spaces
       fileUrl = Uri.encodeFull(fileUrl);
 
       Dio dio = Dio();
@@ -85,6 +98,7 @@ class DocumentDetailPage extends StatelessWidget {
       );
     }
   }
+
 
 
   @override
