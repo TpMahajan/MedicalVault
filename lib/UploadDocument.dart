@@ -2,13 +2,14 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'api_service.dart';
 import 'Document_model.dart';
 
 class UploadDocument extends StatefulWidget {
-  final String userId;      // MongoDB userId
-  final String userEmail;   // User email
+  final String userId;
+  final String userEmail;
 
   const UploadDocument({
     super.key,
@@ -29,6 +30,7 @@ class _UploadDocumentState extends State<UploadDocument> {
   final TextEditingController _notesController = TextEditingController();
   bool _isUploading = false;
 
+  /// File picker
   Future<void> _pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles();
     if (result != null) {
@@ -36,6 +38,19 @@ class _UploadDocumentState extends State<UploadDocument> {
         _selectedFile = File(result.files.single.path!);
         _fileBytes =
             result.files.single.bytes ?? _selectedFile!.readAsBytesSync();
+      });
+    }
+  }
+
+  /// Camera capture
+  Future<void> _pickFromCamera() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? photo = await picker.pickImage(source: ImageSource.camera);
+
+    if (photo != null) {
+      setState(() {
+        _selectedFile = File(photo.path);
+        _fileBytes = _selectedFile!.readAsBytesSync();
       });
     }
   }
@@ -57,7 +72,7 @@ class _UploadDocumentState extends State<UploadDocument> {
   Future<void> _uploadDocument() async {
     if (_selectedFile == null || _selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚠️ Please select file & category")),
+        const SnackBar(content: Text("⚠️ Please select file or capture photo & choose category")),
       );
       return;
     }
@@ -86,14 +101,14 @@ class _UploadDocumentState extends State<UploadDocument> {
       );
 
       if (response != null) {
-        final docData = response['file'] ?? response; // adjust if backend uses 'file'
+        final docData = response['file'] ?? response;
         final uploadedDoc = Document.fromApi(docData as Map<String, dynamic>);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("✅ Document uploaded successfully!")),
           );
-          Navigator.pop(context, uploadedDoc); // send back uploaded document
+          Navigator.pop(context, uploadedDoc);
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -120,7 +135,7 @@ class _UploadDocumentState extends State<UploadDocument> {
             TextField(
               controller: _titleController,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.title),
+                prefixIcon: const Icon(Icons.title, color: Colors.blue),
                 labelText: "Document Title",
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -131,7 +146,7 @@ class _UploadDocumentState extends State<UploadDocument> {
             DropdownButtonFormField<String>(
               value: _selectedCategory,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.category),
+                prefixIcon: const Icon(Icons.category, color: Colors.blue),
                 labelText: "Category",
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -153,7 +168,7 @@ class _UploadDocumentState extends State<UploadDocument> {
                         : "",
                   ),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.calendar_today),
+                    prefixIcon: const Icon(Icons.calendar_today, color: Colors.blue),
                     labelText: "Date",
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -167,7 +182,7 @@ class _UploadDocumentState extends State<UploadDocument> {
               controller: _notesController,
               maxLines: 3,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.notes),
+                prefixIcon: const Icon(Icons.notes , color: Colors.blue),
                 labelText: "Notes (optional)",
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -181,11 +196,15 @@ class _UploadDocumentState extends State<UploadDocument> {
                   icon: const Icon(Icons.attach_file, color: Colors.blue),
                   onPressed: _pickFile,
                 ),
+                IconButton(
+                  icon: const Icon(Icons.camera_alt, color: Colors.blue),
+                  onPressed: _pickFromCamera,
+                ),
                 Expanded(
                   child: Text(
                     _selectedFile != null
                         ? _selectedFile!.path.split('/').last
-                        : "No file selected",
+                        : "No file selected / photo captured",
                     style: const TextStyle(color: Colors.black54),
                   ),
                 ),
@@ -195,13 +214,25 @@ class _UploadDocumentState extends State<UploadDocument> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                icon: const Icon(Icons.cloud_upload),
+                icon: const Icon(Icons.cloud_upload, color: Colors.blue),
                 label: _isUploading
-                    ? const Text("Uploading...")
-                    : const Text("Upload Document"),
+                    ? const Text(
+                  "Uploading...",
+                  style: TextStyle(color: Colors.blue),
+                )
+                    : const Text(
+                  "Upload Document",
+                  style: TextStyle(color: Colors.blue),
+                ),
                 onPressed: _isUploading ? null : _uploadDocument,
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.blue, // applies to text + icon if not overridden
+                  backgroundColor: Colors.white, // optional, makes button white
+                  side: const BorderSide(color: Colors.blue), // optional border
+                ),
               ),
-            ),
+            )
+
           ],
         ),
       ),
