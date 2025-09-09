@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:dio/dio.dart';
 import 'Document_model.dart';
 import 'api_service.dart';
 
@@ -21,6 +24,7 @@ class CategoryVaultPage extends StatefulWidget {
 class _CategoryVaultPageState extends State<CategoryVaultPage> {
   List<Document> files = [];
   bool _isLoading = true;
+  final Dio dio = Dio();
 
   @override
   void initState() {
@@ -35,9 +39,8 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         category: widget.category,
         userEmail: widget.userEmail,
       );
-
       setState(() {
-        files = docs; // already List<Document> return ho raha hai ApiService se
+        files = docs;
         _isLoading = false;
       });
     } catch (e) {
@@ -47,25 +50,51 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
   }
 
   Future<void> _openFile(Document document) async {
-    final url = document.url;
-    if (url == null || url.isEmpty) {
+    if (document.url == null || document.url!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("File URL missing")),
       );
       return;
     }
 
+    final ext = document.fileName?.split('.').last.toLowerCase() ?? '';
     try {
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not open file")),
+      if (ext == 'pdf') {
+        // Preview PDF inside the app
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PdfPreviewPage(url: document.url!),
+          ),
         );
+      } else {
+        // Open image or other file type using default app
+        final dir = await getTemporaryDirectory();
+        final filePath = '${dir.path}/${document.fileName}';
+        await dio.download(document.url!, filePath);
+        await OpenFile.open(filePath);
       }
     } catch (e) {
       debugPrint("❌ Preview error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Could not open file")),
+      );
+    }
+  }
+
+  Future<void> _downloadFile(Document document) async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final filePath = '${dir.path}/${document.fileName}';
+      await dio.download(document.url!, filePath);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("✅ Downloaded to ${filePath}")),
+      );
+    } catch (e) {
+      debugPrint("❌ Download error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Download failed")),
+      );
     }
   }
 
@@ -86,12 +115,12 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
   }
 
   Widget _buildThumbnail(Document document) {
-    final title = document.fileName?.toLowerCase() ?? document.title!.toLowerCase();
-    if (title.endsWith(".png") || title.endsWith(".jpg") || title.endsWith(".jpeg")) {
-      return const Icon(Icons.image, color: Colors.green, size: 40);
-    } else if (title.endsWith(".pdf")) {
+    final ext = document.fileName?.split('.').last.toLowerCase() ?? '';
+    if (['png', 'jpg', 'jpeg', 'gif'].contains(ext)) {
+      return Image.network(document.url!, width: 50, height: 50, fit: BoxFit.cover);
+    } else if (ext == 'pdf') {
       return const Icon(Icons.picture_as_pdf, color: Colors.red, size: 40);
-    } else if (title.endsWith(".doc") || title.endsWith(".docx")) {
+    } else if (['doc', 'docx'].contains(ext)) {
       return const Icon(Icons.description, color: Colors.blue, size: 40);
     }
     return const Icon(Icons.insert_drive_file, color: Colors.grey, size: 40);
@@ -105,10 +134,7 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadFiles,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadFiles),
         ],
       ),
       body: _isLoading
@@ -138,10 +164,8 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         itemBuilder: (context, index) {
           final file = files[index];
           return Card(
-            margin:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: ListTile(
               leading: _buildThumbnail(file),
               title: Text(file.title ?? "Untitled"),
@@ -153,10 +177,14 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
                 spacing: 8,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.remove_red_eye,
-                        color: Colors.blue),
+                    icon: const Icon(Icons.remove_red_eye, color: Colors.blue),
                     onPressed: () => _openFile(file),
                     tooltip: "Preview",
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.download, color: Colors.green),
+                    onPressed: () => _downloadFile(file),
+                    tooltip: "Download",
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
@@ -168,6 +196,24 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// ---------------- PDF Preview Page ----------------
+class PdfPreviewPage extends StatelessWidget {
+  final String url;
+
+  const PdfPreviewPage({super.key, required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("PDF Preview")),
+      body: Center(
+        child: Text("PDF Preview not implemented yet.\nOpen from URL: $url"),
+        // For real PDF preview, use: syncfusion_flutter_pdfviewer or flutter_pdfview
       ),
     );
   }
