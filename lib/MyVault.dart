@@ -4,6 +4,9 @@ import 'package:lottie/lottie.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
 
 import 'Document_model.dart';
 import 'UploadDocument.dart';
@@ -15,7 +18,7 @@ class DocumentDetailPage extends StatelessWidget {
 
   const DocumentDetailPage({super.key, required this.document});
 
-  /// 🔹 Preview = open Cloudinary URL in browser/PDF viewer
+  /// 🔹 Preview = open file in-app or external app
   Future<void> _previewFile(BuildContext context) async {
     final url = document.url;
     if (url == null || url.isEmpty) {
@@ -26,13 +29,32 @@ class DocumentDetailPage extends StatelessWidget {
     }
 
     try {
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not preview file")),
+      final ext = document.fileName?.split('.').last.toLowerCase() ?? '';
+
+      if (ext == 'pdf') {
+        // Open PDF with external app
+        await _downloadAndOpenFile(document);
+      } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].contains(ext)) {
+        // Preview images in-app
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ImagePreviewPage(
+              url: url,
+              title: document.title ?? 'Image Preview',
+            ),
+          ),
         );
+      } else {
+        // Open other file types with external app
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Could not preview file")),
+          );
+        }
       }
     } catch (e) {
       debugPrint("❌ Error previewing: $e");
@@ -42,11 +64,23 @@ class DocumentDetailPage extends StatelessWidget {
     }
   }
 
+  Future<void> _downloadAndOpenFile(Document document) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final filePath = '${dir.path}/${document.fileName}';
+      final dio = Dio();
+      await dio.download(document.url!, filePath);
+      await OpenFile.open(filePath);
+    } catch (e) {
+      debugPrint("❌ Download and open error: $e");
+      rethrow;
+    }
+  }
+
   /// 🔹 Download Cloudinary file to device
   Future<void> _downloadFile(BuildContext context) async {
     try {
-      final url = document.url;
-      if (url == null || url.isEmpty) {
+      if (document.url == null || document.url!.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("File URL missing")),
         );
@@ -55,24 +89,26 @@ class DocumentDetailPage extends StatelessWidget {
 
       // 📂 Request storage permission
       if (Platform.isAndroid) {
-        if (!await Permission.storage.request().isGranted) {
+        final status = await Permission.storage.request();
+        if (!status.isGranted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Storage permission denied")),
+            const SnackBar(
+                content: Text("Storage permission required for download")),
           );
           return;
         }
       }
 
-      // 📂 Save to downloads/documents directory
-      final dir = Directory('/storage/emulated/0/Download');
-      final fileName = "${document.title ?? "document"}.pdf";
-      final savePath = "${dir.path}/$fileName";
+      // Use the backend download endpoint for proper handling
+      final downloadUrl = '${ApiService.baseUrl}/download/${document.id}';
+      final dir = await getApplicationDocumentsDirectory();
+      final filePath = '${dir.path}/${document.fileName}';
 
       Dio dio = Dio();
-      await dio.download(url, savePath);
+      await dio.download(downloadUrl, filePath);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("✅ File downloaded: $savePath")),
+        SnackBar(content: Text("✅ File downloaded: $filePath")),
       );
     } catch (e) {
       debugPrint("❌ Download error: $e");
@@ -103,16 +139,16 @@ class DocumentDetailPage extends StatelessWidget {
                   ElevatedButton.icon(
                     onPressed: () => _previewFile(context),
                     icon: const Icon(Icons.remove_red_eye, color: Colors.blue),
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white),
+                    style:
+                        ElevatedButton.styleFrom(backgroundColor: Colors.white),
                     label: const Text("Preview"),
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton.icon(
                     onPressed: () => _downloadFile(context),
                     icon: const Icon(Icons.download, color: Colors.blue),
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white),
+                    style:
+                        ElevatedButton.styleFrom(backgroundColor: Colors.white),
                     label: const Text("Download"),
                   ),
                 ],
@@ -199,7 +235,6 @@ class _MyVaultState extends State<MyVault> {
     setState(() => _isLoading = false);
   }
 
-
   List<Document> _filterAndSortDocuments() {
     final query = _searchController.text.toLowerCase();
     final now = DateTime.now();
@@ -207,10 +242,10 @@ class _MyVaultState extends State<MyVault> {
     var docs = _selectedCategory == "All"
         ? MyVault._allDocuments
         : MyVault._allDocuments
-        .where((doc) =>
-    (doc.category ?? '').toLowerCase() ==
-        _selectedCategory.toLowerCase())
-        .toList();
+            .where((doc) =>
+                (doc.category ?? '').toLowerCase() ==
+                _selectedCategory.toLowerCase())
+            .toList();
 
     // 🔍 Apply search
     docs = docs
@@ -253,14 +288,109 @@ class _MyVaultState extends State<MyVault> {
     return docs;
   }
 
-  Future<void> _openUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
+  Future<void> _openFile(Document document) async {
+    debugPrint("🔍 Opening file: ${document.fileName}");
+    debugPrint("🔍 File URL: ${document.url}");
+    debugPrint("🔍 File type: ${document.fileType}");
+
+    if (document.url == null || document.url!.isEmpty) {
+      debugPrint("❌ File URL is missing");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Could not open file")),
+        const SnackBar(content: Text("File URL missing")),
       );
+      return;
+    }
+
+    try {
+      final ext = document.fileName?.split('.').last.toLowerCase() ?? '';
+      debugPrint("🔍 File extension: $ext");
+
+      if (ext == 'pdf') {
+        debugPrint("📄 Opening PDF with external app");
+        // Open PDF with external app
+        await _downloadAndOpenFile(document);
+      } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].contains(ext)) {
+        debugPrint("🖼️ Opening image in-app");
+        // Preview images in-app
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ImagePreviewPage(
+              url: document.url!,
+              title: document.title ?? 'Image Preview',
+            ),
+          ),
+        );
+      } else {
+        debugPrint("📁 Opening other file type with external app");
+        // Open other file types with external app
+        final uri = Uri.parse(document.url!);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Could not open file")),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("❌ Error opening file: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Could not open file: $e")),
+      );
+    }
+  }
+
+  Future<void> _downloadFile(Document document) async {
+    try {
+      if (document.url == null || document.url!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("File URL missing")),
+        );
+        return;
+      }
+
+      // Request storage permission for Android
+      if (Platform.isAndroid) {
+        final status = await Permission.storage.request();
+        if (!status.isGranted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text("Storage permission required for download")),
+          );
+          return;
+        }
+      }
+
+      // Use the backend download endpoint for proper handling
+      final downloadUrl = '${ApiService.baseUrl}/download/${document.id}';
+      final dir = await getApplicationDocumentsDirectory();
+      final filePath = '${dir.path}/${document.fileName}';
+
+      Dio dio = Dio();
+      await dio.download(downloadUrl, filePath);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("✅ File downloaded: $filePath")),
+      );
+    } catch (e) {
+      debugPrint("❌ Download error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Download failed: $e")),
+      );
+    }
+  }
+
+  Future<void> _downloadAndOpenFile(Document document) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final filePath = '${dir.path}/${document.fileName}';
+      final dio = Dio();
+      await dio.download(document.url!, filePath);
+      await OpenFile.open(filePath);
+    } catch (e) {
+      debugPrint("❌ Download and open error: $e");
+      rethrow;
     }
   }
 
@@ -327,9 +457,9 @@ class _MyVaultState extends State<MyVault> {
                     value: _selectedSort,
                     items: _sortOptions
                         .map((option) => DropdownMenuItem(
-                      value: option,
-                      child: Text(option),
-                    ))
+                              value: option,
+                              child: Text(option),
+                            ))
                         .toList(),
                     onChanged: (val) {
                       if (val != null) {
@@ -346,69 +476,70 @@ class _MyVaultState extends State<MyVault> {
           Expanded(
             child: _isLoading
                 ? Center(
-              child: Lottie.asset(
-                'assets/LoadingClock.json',
-                width: 100,
-                height: 100,
-              ),
-            )
-                : docs.isEmpty
-                ? const Center(child: Text("No documents found"))
-                : ListView.builder(
-              itemCount: docs.length,
-              itemBuilder: (context, index) {
-                final doc = docs[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(
-                      vertical: 6, horizontal: 8),
-                  child: ListTile(
-                    leading: const Icon(Icons.insert_drive_file,
-                        color: Colors.blue),
-                    title: Text(doc.title ?? "Untitled"),
-                    subtitle:
-                    Text("${doc.category} • ${doc.date}"),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove_red_eye,
-                              color: Colors.green),
-                          onPressed: () async {
-                            if (doc.url != null) {
-                              await _openUrl(doc.url!);
-                            }
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete,
-                              color: Colors.red),
-                          onPressed: () async {
-                            final success =
-                            await ApiService.deleteDocument(
-                                doc.id!);
-                            if (success) {
-                              setState(() {
-                                MyVault.removeDocument(doc.id!);
-                              });
-                              ScaffoldMessenger.of(context)
-                                  .showSnackBar(const SnackBar(
-                                  content:
-                                  Text("File deleted")));
-                            }
-                          },
-                        ),
-                      ],
+                    child: Lottie.asset(
+                      'assets/LoadingClock.json',
+                      width: 100,
+                      height: 100,
                     ),
-                  ),
-                );
-              },
-            ),
+                  )
+                : docs.isEmpty
+                    ? const Center(child: Text("No documents found"))
+                    : ListView.builder(
+                        itemCount: docs.length,
+                        itemBuilder: (context, index) {
+                          final doc = docs[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 6, horizontal: 8),
+                            child: ListTile(
+                              leading: const Icon(Icons.insert_drive_file,
+                                  color: Colors.blue),
+                              title: Text(doc.title ?? "Untitled"),
+                              subtitle: Text("${doc.category} • ${doc.date}"),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.remove_red_eye,
+                                        color: Colors.green),
+                                    onPressed: () => _openFile(doc),
+                                    tooltip: "Preview",
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.download,
+                                        color: Colors.blue),
+                                    onPressed: () => _downloadFile(doc),
+                                    tooltip: "Download",
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete,
+                                        color: Colors.red),
+                                    onPressed: () async {
+                                      final success =
+                                          await ApiService.deleteDocument(
+                                              doc.id!);
+                                      if (success) {
+                                        setState(() {
+                                          MyVault.removeDocument(doc.id!);
+                                        });
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(const SnackBar(
+                                                content: Text("File deleted")));
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
           ),
 
           // 📤 Upload Button
           Padding(
             padding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Container(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
@@ -450,6 +581,179 @@ class _MyVaultState extends State<MyVault> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------- PDF Preview Page ----------------
+class PdfPreviewPage extends StatefulWidget {
+  final String url;
+  final String title;
+
+  const PdfPreviewPage({super.key, required this.url, required this.title});
+
+  @override
+  State<PdfPreviewPage> createState() => _PdfPreviewPageState();
+}
+
+class _PdfPreviewPageState extends State<PdfPreviewPage> {
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPdf();
+  }
+
+  Future<void> _loadPdf() async {
+    try {
+      setState(() => _isLoading = true);
+      debugPrint("📄 Loading PDF from URL: ${widget.url}");
+
+      // Test if the URL is accessible
+      final dio = Dio();
+      final response = await dio.head(widget.url);
+      debugPrint("📄 PDF URL response status: ${response.statusCode}");
+
+      setState(() => _isLoading = false);
+    } catch (e) {
+      debugPrint("❌ PDF load error: $e");
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: () async {
+              try {
+                final dio = Dio();
+                final dir = await getApplicationDocumentsDirectory();
+                final filePath = '${dir.path}/${widget.title}.pdf';
+                await dio.download(widget.url, filePath);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("PDF downloaded to $filePath")),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Download failed: $e")),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text("Error loading PDF: $_error"),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadPdf,
+                        child: const Text("Retry"),
+                      ),
+                    ],
+                  ),
+                )
+              : SfPdfViewer.network(
+                  widget.url,
+                  enableDoubleTapZooming: true,
+                  enableTextSelection: true,
+                  onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
+                    debugPrint("❌ PDF load failed: ${details.error}");
+                    setState(() {
+                      _error = "Failed to load PDF: ${details.error}";
+                    });
+                  },
+                  onDocumentLoaded: (PdfDocumentLoadedDetails details) {
+                    debugPrint(
+                        "✅ PDF loaded successfully: ${details.document.pages.count} pages");
+                  },
+                ),
+    );
+  }
+}
+
+// ---------------- Image Preview Page ----------------
+class ImagePreviewPage extends StatelessWidget {
+  final String url;
+  final String title;
+
+  const ImagePreviewPage({super.key, required this.url, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: () async {
+              try {
+                final dio = Dio();
+                final dir = await getApplicationDocumentsDirectory();
+                final ext = url.split('.').last.split('?').first;
+                final filePath = '${dir.path}/${title}.$ext';
+                await dio.download(url, filePath);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Image downloaded to $filePath")),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Download failed: $e")),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Center(
+                child: CircularProgressIndicator(
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                      : null,
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error, size: 64, color: Colors.red),
+                    SizedBox(height: 16),
+                    Text("Error loading image"),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
