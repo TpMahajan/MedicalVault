@@ -72,7 +72,8 @@ class _UploadDocumentState extends State<UploadDocument> {
   Future<void> _uploadDocument() async {
     if (_selectedFile == null || _selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚠️ Please select file or capture photo & choose category")),
+        const SnackBar(
+            content: Text("⚠️ Please select file or capture photo & choose category")),
       );
       return;
     }
@@ -90,7 +91,7 @@ class _UploadDocumentState extends State<UploadDocument> {
     final notes = _notesController.text;
 
     try {
-      final response = await ApiService.uploadDocument(
+      final uploadedDoc = await ApiService.uploadDocument(
         file: _selectedFile!,
         userId: widget.userId,
         userEmail: widget.userEmail,
@@ -100,14 +101,13 @@ class _UploadDocumentState extends State<UploadDocument> {
         notes: notes,
       );
 
-      if (response != null) {
-        final docData = response['file'] ?? response;
-        final uploadedDoc = Document.fromApi(docData as Map<String, dynamic>);
-
+      if (uploadedDoc != null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("✅ Document uploaded successfully!")),
           );
+
+          // Return uploaded document to previous screen
           Navigator.pop(context, uploadedDoc);
         }
       } else {
@@ -153,7 +153,8 @@ class _UploadDocumentState extends State<UploadDocument> {
                 ),
               ),
               items: ["Reports", "Prescription", "Bills", "Insurance"]
-                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                  .map((cat) =>
+                  DropdownMenuItem(value: cat, child: Text(cat)))
                   .toList(),
               onChanged: (val) => setState(() => _selectedCategory = val),
             ),
@@ -168,7 +169,8 @@ class _UploadDocumentState extends State<UploadDocument> {
                         : "",
                   ),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.calendar_today, color: Colors.blue),
+                    prefixIcon:
+                    const Icon(Icons.calendar_today, color: Colors.blue),
                     labelText: "Date",
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -182,7 +184,7 @@ class _UploadDocumentState extends State<UploadDocument> {
               controller: _notesController,
               maxLines: 3,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.notes , color: Colors.blue),
+                prefixIcon: const Icon(Icons.notes, color: Colors.blue),
                 labelText: "Notes (optional)",
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -226,13 +228,12 @@ class _UploadDocumentState extends State<UploadDocument> {
                 ),
                 onPressed: _isUploading ? null : _uploadDocument,
                 style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.blue, // applies to text + icon if not overridden
-                  backgroundColor: Colors.white, // optional, makes button white
-                  side: const BorderSide(color: Colors.blue), // optional border
+                  foregroundColor: Colors.blue,
+                  backgroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.blue),
                 ),
               ),
             )
-
           ],
         ),
       ),

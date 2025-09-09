@@ -40,7 +40,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Serve uploads folder publicly
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(process.env.UPLOAD_DIR || path.join(__dirname, "../uploads")));
 
 // -------------------- Routes --------------------
 app.use("/api/auth", authRoutes);

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'Document_model.dart';
-import 'package:open_file/open_file.dart';
 import 'api_service.dart';
 
 class CategoryVaultPage extends StatefulWidget {
@@ -36,43 +36,57 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         userEmail: widget.userEmail,
       );
 
-      // Convert List<Map<String,dynamic>> to List<Document>
-      final docList = docs.map((docMap) => Document.fromApi(docMap)).toList();
-
       setState(() {
-        files = docList;
+        files = docs; // already List<Document> return ho raha hai ApiService se
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      print("⚠️ Error loading files: $e");
+      debugPrint("⚠️ Error loading files: $e");
     }
   }
 
   Future<void> _openFile(Document document) async {
-    if (document.path == null || document.path!.isEmpty) return;
+    final url = document.url;
+    if (url == null || url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("File URL missing")),
+      );
+      return;
+    }
 
-    // ✅ Pass String file URL
-    await ApiService.previewDocument(document.path!);
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not open file")),
+        );
+      }
+    } catch (e) {
+      debugPrint("❌ Preview error: $e");
+    }
   }
 
   Future<void> _deleteFile(Document document) async {
     if (document.id == null) return;
 
-    // ✅ Pass String docId
     final success = await ApiService.deleteDocument(document.id!);
     if (success) {
       setState(() => files.remove(document));
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("✅ Document deleted")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Document deleted")),
+      );
     } else {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("❌ Failed to delete document")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("❌ Failed to delete document")),
+      );
     }
   }
 
   Widget _buildThumbnail(Document document) {
-    final title = document.title.toLowerCase();
+    final title = document.fileName?.toLowerCase() ?? document.title!.toLowerCase();
     if (title.endsWith(".png") || title.endsWith(".jpg") || title.endsWith(".jpeg")) {
       return const Icon(Icons.image, color: Colors.green, size: 40);
     } else if (title.endsWith(".pdf")) {
@@ -124,13 +138,13 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         itemBuilder: (context, index) {
           final file = files[index];
           return Card(
-            margin: const EdgeInsets.symmetric(
-                horizontal: 12, vertical: 8),
+            margin:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12)),
             child: ListTile(
               leading: _buildThumbnail(file),
-              title: Text(file.title),
+              title: Text(file.title ?? "Untitled"),
               subtitle: Text(
                 'Uploaded: ${file.date ?? ''}',
                 style: const TextStyle(fontSize: 12),
@@ -145,8 +159,7 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
                     tooltip: "Preview",
                   ),
                   IconButton(
-                    icon:
-                    const Icon(Icons.delete, color: Colors.red),
+                    icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () => _deleteFile(file),
                     tooltip: "Delete",
                   ),

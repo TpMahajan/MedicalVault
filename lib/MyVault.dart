@@ -1,14 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:dio/dio.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'Document_model.dart';
 import 'UploadDocument.dart';
 import 'api_service.dart';
-import 'MyVault.dart'; // 👈 MyVault access ke liye
 
 // ================= DOCUMENT DETAIL PAGE =================
 class DocumentDetailPage extends StatelessWidget {
@@ -16,90 +15,72 @@ class DocumentDetailPage extends StatelessWidget {
 
   const DocumentDetailPage({super.key, required this.document});
 
+  /// 🔹 Preview = open Cloudinary URL in browser/PDF viewer
   Future<void> _previewFile(BuildContext context) async {
-    final path = document.path;
-    if (path == null || path.isEmpty) {
+    final url = document.url;
+    if (url == null || url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("File path is missing")),
+        const SnackBar(content: Text("File URL is missing")),
       );
       return;
     }
 
     try {
-      await ApiService.previewDocument(path);
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not preview file")),
+        );
+      }
     } catch (e) {
-      debugPrint("❌ Error previewing document: $e");
+      debugPrint("❌ Error previewing: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Error previewing document: $e")),
+        SnackBar(content: Text("❌ Error: $e")),
       );
     }
   }
 
+  /// 🔹 Download Cloudinary file to device
   Future<void> _downloadFile(BuildContext context) async {
     try {
-      if (document.path == null || document.path!.isEmpty) {
+      final url = document.url;
+      if (url == null || url.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("File path missing")),
+          const SnackBar(content: Text("File URL missing")),
         );
         return;
       }
 
       // 📂 Request storage permission
-      Future<bool> _requestPermission() async {
-        if (Platform.isAndroid) {
-          if (await Permission.manageExternalStorage.isDenied) {
-            final status = await Permission.manageExternalStorage.request();
-            return status.isGranted;
-          }
-          return true;
-        } else {
-          final status = await Permission.storage.request();
-          return status.isGranted;
+      if (Platform.isAndroid) {
+        if (!await Permission.storage.request().isGranted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Storage permission denied")),
+          );
+          return;
         }
       }
 
-      if (!await _requestPermission()) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Storage permission denied")),
-        );
-        return;
-      }
-
-      // 📂 Get Downloads folder safely
-      Directory downloadsDir;
-      if (Platform.isAndroid) {
-        downloadsDir = (await getExternalStorageDirectory())!;
-      } else {
-        downloadsDir = await getApplicationDocumentsDirectory();
-      }
-
-      String fileName = "${document.title ?? "document"}.pdf";
-      String savePath = "${downloadsDir.path}/$fileName";
-
-      // ✅ Prepend server URL
-      String fileUrl = document.path!;
-      if (!fileUrl.startsWith("http")) {
-        fileUrl = "https://healthvault-backend-c6xl.onrender.com/$fileUrl";
-      }
-
-      // Encode URL to handle spaces
-      fileUrl = Uri.encodeFull(fileUrl);
+      // 📂 Save to downloads/documents directory
+      final dir = Directory('/storage/emulated/0/Download');
+      final fileName = "${document.title ?? "document"}.pdf";
+      final savePath = "${dir.path}/$fileName";
 
       Dio dio = Dio();
-      await dio.download(fileUrl, savePath);
+      await dio.download(url, savePath);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("✅ File downloaded at $savePath")),
+        SnackBar(content: Text("✅ File downloaded: $savePath")),
       );
     } catch (e) {
       debugPrint("❌ Download error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Failed to download: $e")),
+        SnackBar(content: Text("❌ Failed: $e")),
       );
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +97,7 @@ class DocumentDetailPage extends StatelessWidget {
             Text("Uploaded on: ${document.date ?? 'Unknown'}",
                 style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 20),
-            if (document.path != null && document.path!.isNotEmpty) ...[
+            if (document.url != null && document.url!.isNotEmpty) ...[
               Row(
                 children: [
                   ElevatedButton.icon(
@@ -143,7 +124,6 @@ class DocumentDetailPage extends StatelessWidget {
     );
   }
 }
-
 
 // ================= MY VAULT =================
 class MyVault extends StatefulWidget {
@@ -203,10 +183,13 @@ class _MyVaultState extends State<MyVault> {
     try {
       for (var category in _categories.where((c) => c != "All")) {
         final docs = await ApiService.fetchDocuments(
-            category: category, userEmail: widget.userEmail);
+          category: category,
+          userEmail: widget.userEmail,
+        );
+
+        // ⚡ Yahan ab 'docs' is already List<Document>
         for (final doc in docs) {
-          final document = Document.fromApi(doc);
-          MyVault.addDocument(document);
+          MyVault.addDocument(doc);
         }
       }
     } catch (e) {
@@ -215,6 +198,7 @@ class _MyVaultState extends State<MyVault> {
 
     setState(() => _isLoading = false);
   }
+
 
   List<Document> _filterAndSortDocuments() {
     final query = _searchController.text.toLowerCase();
@@ -267,6 +251,17 @@ class _MyVaultState extends State<MyVault> {
     });
 
     return docs;
+  }
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Could not open file")),
+      );
+    }
   }
 
   @override
@@ -379,14 +374,9 @@ class _MyVaultState extends State<MyVault> {
                           icon: const Icon(Icons.remove_red_eye,
                               color: Colors.green),
                           onPressed: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    DocumentDetailPage(document: doc),
-                              ),
-                            );
-                            _loadDocumentsFromAPI();
+                            if (doc.url != null) {
+                              await _openUrl(doc.url!);
+                            }
                           },
                         ),
                         IconButton(

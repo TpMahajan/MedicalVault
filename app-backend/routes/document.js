@@ -1,20 +1,28 @@
 import express from "express";
 import multer from "multer";
-import fs from "fs";
-import path from "path";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import { v2 as cloudinary } from "cloudinary";
 import File from "../models/File.js";
 
 const router = express.Router();
 
-// ------- Multer Disk Storage Setup --------
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/"); // uploads folder should exist in project root
+// 🔹 Cloudinary Config
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, // ✅ matches .env
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// 🔹 Cloudinary Storage
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: async (req, file) => {
+    return {
+      folder: "medical-vault",               // Cloudinary folder
+      resource_type: "auto",                 // ✅ auto-detects (pdf, img, video)
+      public_id: Date.now() + "-" + file.originalname.replace(/\s+/g, "_"),
+    };
   },
-  filename: (req, file, cb) => {
-    const uniqueName = Date.now() + "-" + file.originalname;
-    cb(null, uniqueName);
-  }
 });
 
 const upload = multer({ storage });
@@ -24,10 +32,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ msg: "No file uploaded" });
 
-    const { email, title, category, date, notes } = req.body;
+    console.log("Cloudinary file:", req.file); // 👀 debug
 
-    // Normalize Windows path to forward slash
-    const normalizedPath = req.file.path.replace(/\\/g, "/");
+    const { email, title, category, date, notes } = req.body;
 
     const newFile = await File.create({
       userId: email,
@@ -35,11 +42,10 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       notes: notes || "",
       date: date || new Date().toISOString(),
       originalName: req.file.originalname,
-      storedName: req.file.filename,
       mimeType: req.file.mimetype,
       size: req.file.size,
-      path: normalizedPath,            // ✅ normalized OS path
-      url: "/" + normalizedPath,       // ✅ usable for frontend preview
+      url: req.file.path,          // ✅ Cloudinary URL
+      publicId: req.file.filename, // ✅ Cloudinary public_id (needed for delete)
       category: category || "Other",
     });
 
@@ -50,6 +56,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   }
 });
 
+
 // ---------------- List Files ----------------
 router.get("/", async (req, res) => {
   try {
@@ -57,7 +64,7 @@ router.get("/", async (req, res) => {
     const query = {};
 
     if (email) query.userId = email;
-    if (category) query.category = { $regex: new RegExp(`^${category}$`, "i") }; // case-insensitive
+    if (category) query.category = { $regex: new RegExp(`^${category}$`, "i") };
 
     const files = await File.find(query).sort({ createdAt: -1 });
 
@@ -73,8 +80,7 @@ router.get("/", async (req, res) => {
         fileName: f.originalName,
         fileType: f.mimeType?.split("/").pop() || "file",
         uploadedAt: f.createdAt,
-        url: f.url,
-        path: f.path,      // OS path if needed for delete
+        url: f.url,               // ✅ Direct Cloudinary link
         category: f.category,
       })),
     });
@@ -89,8 +95,8 @@ router.get("/download/:id", async (req, res) => {
     const file = await File.findById(req.params.id);
     if (!file) return res.status(404).json({ msg: "Not found" });
 
-    const filePath = path.resolve(file.path.replace(/\//g, path.sep));
-    res.download(filePath, file.originalName);
+    // ✅ Instead of local path, redirect to Cloudinary URL
+    res.redirect(file.url);
   } catch (err) {
     res.status(500).json({ msg: "Error downloading file", err: err.message });
   }
@@ -102,14 +108,12 @@ router.delete("/:id", async (req, res) => {
     const file = await File.findById(req.params.id);
     if (!file) return res.status(404).json({ msg: "Not found" });
 
-    // Convert forward slash to OS-specific separator for deletion
-    const filePath = path.resolve(file.path.replace(/\//g, path.sep));
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    if (file.publicId) {
+      await cloudinary.uploader.destroy(file.publicId, { resource_type: "auto" });
     }
 
     await File.deleteOne({ _id: file._id });
-    res.json({ ok: true, msg: "File deleted" });
+    res.json({ ok: true, msg: "File deleted successfully" });
   } catch (err) {
     res.status(500).json({ msg: "Error deleting file", err: err.message });
   }

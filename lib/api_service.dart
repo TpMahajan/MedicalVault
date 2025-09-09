@@ -2,60 +2,42 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:open_file/open_file.dart';
-import 'package:path_provider/path_provider.dart';
 import 'Document_model.dart';
 
 class ApiService {
   // 🔹 Render Hosted Backend URL
-  static const String baseUrl = "https://healthvault-backend-c6xl.onrender.com/api";
+  static const String baseUrl =
+      "https://healthvault-backend-c6xl.onrender.com/api/files";
 
   // ================= Preview Document =================
-  // ================= Preview Document =================
-  static Future<void> previewDocument(String filePath) async {
+  /// Ab preview ke liye Cloudinary ka direct URL use hoga.
+  static Future<void> previewDocument(String fileUrl) async {
     try {
-      // Normalize slashes
-      String normalizedPath = filePath.replaceAll("\\", "/");
-
-      // Build full URL
-      final fullUrl = normalizedPath.startsWith("http")
-          ? normalizedPath
-          : "${baseUrl.replaceAll("/api", "")}/$normalizedPath";
-
-      print("📂 Previewing: $fullUrl"); // debug log
-
-      final uri = Uri.parse(fullUrl);
-      final httpClient = HttpClient();
-      final request = await httpClient.getUrl(uri);
-      final response = await request.close();
-
-      if (response.statusCode == 200) {
-        final bytes = await consolidateHttpClientResponseBytes(response);
-        final dir = await getTemporaryDirectory();
-        final fileName = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : "temp_file";
-        final tempFile = File("${dir.path}/$fileName");
-        await tempFile.writeAsBytes(bytes, flush: true);
-        await OpenFile.open(tempFile.path);
-      } else {
-        throw "Failed to fetch file: ${response.statusCode}";
+      if (!fileUrl.startsWith("http")) {
+        throw "Invalid file URL";
       }
+
+      // 🔹 Bas Cloudinary URL open karna hai
+      debugPrint("📂 Preview: $fileUrl");
+
+      // Flutter me preview ke liye tum `url_launcher` ya `open_filex` use kar sakte ho
+      // yahan sirf URL return karna kaafi hai, UI side me open karna hoga
     } catch (e) {
-      print("❌ Error previewing document: $e");
+      debugPrint("❌ Error previewing document: $e");
     }
   }
-
 
   // ================= Delete Document =================
   static Future<bool> deleteDocument(String docId) async {
     try {
-      final url = Uri.parse("$baseUrl/files/$docId");
+      final url = Uri.parse("$baseUrl/$docId");
       final response = await http.delete(url);
 
       if (response.statusCode == 200) {
-        debugPrint("✅ Document deleted successfully: $docId");
+        debugPrint("✅ Document deleted: $docId");
         return true;
       } else {
-        debugPrint("❌ Failed to delete document: ${response.statusCode} ${response.body}");
+        debugPrint("❌ Delete failed: ${response.statusCode} ${response.body}");
         return false;
       }
     } catch (e) {
@@ -65,20 +47,21 @@ class ApiService {
   }
 
   // ================= Fetch Documents =================
-  static Future<List<Map<String, dynamic>>> fetchDocuments({
+  static Future<List<Document>> fetchDocuments({
     String? category,
     required String userEmail,
   }) async {
     try {
       final uri = Uri.parse(
-          "$baseUrl/files?category=${category ?? ''}&email=$userEmail");
+          "$baseUrl?category=${category ?? ''}&email=$userEmail");
+
       final response = await http.get(uri);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is Map && data.containsKey("documents")) {
           final List docs = data["documents"];
-          return docs.map((e) => Map<String, dynamic>.from(e)).toList();
+          return docs.map((e) => Document.fromApi(e)).toList();
         }
         return [];
       } else {
@@ -92,7 +75,7 @@ class ApiService {
   }
 
   // ================= Upload Document =================
-  static Future<Map<String, dynamic>?> uploadDocument({
+  static Future<Document?> uploadDocument({
     required File file,
     required String userId,
     required String userEmail,
@@ -102,7 +85,7 @@ class ApiService {
     String? notes,
   }) async {
     try {
-      final uri = Uri.parse("$baseUrl/files/upload");
+      final uri = Uri.parse("$baseUrl/upload");
       final request = http.MultipartRequest("POST", uri);
 
       request.fields["userId"] = userId;
@@ -120,7 +103,8 @@ class ApiService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         debugPrint("✅ Upload successful");
-        return jsonResponse;
+        final docData = jsonResponse['file'] ?? jsonResponse;
+        return Document.fromApi(docData);
       } else {
         debugPrint("❌ Upload failed: ${response.statusCode} $respStr");
         return null;
