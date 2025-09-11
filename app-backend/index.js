@@ -17,6 +17,7 @@ import connectDB from "./config/database.js";
 // Routes
 import authRoutes from "./routes/authRoutes.js";
 import documentRoutes from "./routes/document.js";
+import qrRoutes from "./routes/qrRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -45,6 +46,7 @@ app.use("/uploads", express.static(process.env.UPLOAD_DIR || path.join(__dirname
 // -------------------- Routes --------------------
 app.use("/api/auth", authRoutes);
 app.use("/api/files", documentRoutes);
+app.use("/api/qr", qrRoutes);
 
 // Health check
 app.get("/health", (req, res) =>
