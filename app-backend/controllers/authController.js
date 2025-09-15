@@ -157,24 +157,55 @@ export const getMe = async (req, res) => {
 // @access  Private
 export const updateMe = async (req, res) => {
   try {
-    // All fields from req.body can include age, gender, emergencyContact, etc.
-    const updates = req.body;
+    // Only allow certain fields to be updated
+    const allowedFields = [
+      "name",
+      "email",
+      "mobile",
+      "aadhaar",
+      "dateOfBirth",
+      "age",
+      "gender",
+      "bloodType",
+      "height",
+      "weight",
+      "lastVisit",
+      "nextAppointment",
+      "emergencyContact",
+      "medicalHistory",
+      "medications",
+      "medicalRecords",
+      "profilePicture",
+      "fcmToken"
+    ];
 
+    const updates = {};
+    Object.keys(req.body).forEach((field) => {
+      if (allowedFields.includes(field)) {
+        updates[field] = req.body[field];
+      }
+    });
+
+    // Update user in DB
     const user = await User.findByIdAndUpdate(req.user._id, updates, {
       new: true,
-      runValidators: true
-    }).select('-password');
+      runValidators: true,
+    }).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
 
     res.json({
       success: true,
-      message: 'Profile updated successfully',
-      data: { user }
+      message: "Profile updated successfully",
+      data: user,
     });
   } catch (error) {
-    console.error('Update me error:', error);
+    console.error("Update me error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: "Internal server error",
     });
   }
 };

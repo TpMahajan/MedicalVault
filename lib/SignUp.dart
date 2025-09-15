@@ -148,16 +148,16 @@ class _SignUpPageState extends State<SignUpPage> {
                         controller: _phoneController,
                         decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.phone, color: Colors.grey),
-                          labelText: 'Phone',
+                          labelText: 'Mobile',
                           filled: true,
                         ),
                         keyboardType: TextInputType.phone,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Phone number is required';
+                            return 'Mobile number is required';
                           }
                           if (!RegExp(r'^[0-9]{10}$').hasMatch(value)) {
-                            return 'Enter a valid 10-digit phone number';
+                            return 'Enter a valid 10-digit Mobile number';
                           }
                           return null;
                         },

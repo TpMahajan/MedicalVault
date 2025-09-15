@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileName extends StatefulWidget {
   final Map<String, dynamic> userData; // Pass all fields here
@@ -244,6 +246,37 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  Future<void> _saveProfile(Map<String, dynamic> updatedUser) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("authToken");
+
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("⚠️ Not logged in")),
+      );
+      return;
+    }
+
+    final response = await http.put(
+      Uri.parse("https://healthvault-backend-c6xl.onrender.com/api/auth/me"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode(updatedUser),
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      Navigator.pop(context, body["data"]); // return updated user
+    } else {
+      print("❌ Error: ${response.body}");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ Failed to update profile")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -270,15 +303,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    final updatedUser = Map<String, dynamic>.from(widget.userData);
-                    updatedUser.addAll({
+                  onPressed: () async {
+                    final updatedUser = {
                       "name": _controllers["name"]!.text,
                       "email": _controllers["email"]!.text,
                       "mobile": _controllers["mobile"]!.text,
                       "aadhaar": _controllers["aadhaar"]!.text,
                       "dateOfBirth": _controllers["dateOfBirth"]!.text,
-                      "age": _controllers["age"]!.text,
+                      "age": int.tryParse(_controllers["age"]!.text),
                       "gender": _controllers["gender"]!.text,
                       "bloodType": _controllers["bloodType"]!.text,
                       "height": _controllers["height"]!.text,
@@ -290,8 +322,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         "relationship": _controllers["ecRelationship"]!.text,
                         "phone": _controllers["ecPhone"]!.text,
                       }
-                    });
-                    Navigator.pop(context, updatedUser);
+                    };
+                    await _saveProfile(updatedUser);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
