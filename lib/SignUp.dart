@@ -17,6 +17,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _aadhaarController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
@@ -33,12 +34,14 @@ class _SignUpPageState extends State<SignUpPage> {
 
     try {
       final response = await http.post(
-        Uri.parse("https://healthvault-backend-c6xl.onrender.com/api/auth/signup"), // 👈 backend route
+        Uri.parse("https://healthvault-backend-c6xl.onrender.com/api/auth/signup"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "name": _nameController.text.trim(),
           "email": _emailController.text.trim(),
           "password": _passwordController.text.trim(),
+          "mobile": _phoneController.text.trim(),
+          "aadhaar": _aadhaarController.text.trim(),
         }),
       );
 
@@ -47,7 +50,6 @@ class _SignUpPageState extends State<SignUpPage> {
           const SnackBar(content: Text("✅ Account created successfully")),
         );
 
-        // Option: go to WelcomeScreen OR auto-login
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const WelcomeScreen()),
@@ -162,6 +164,25 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
+                        controller: _aadhaarController,
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.credit_card, color: Colors.grey),
+                          labelText: 'Aadhaar Number',
+                          filled: true,
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Aadhaar number is required';
+                          }
+                          if (!RegExp(r'^[0-9]{12}$').hasMatch(value)) {
+                            return 'Enter a valid 12-digit Aadhaar number';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
                         controller: _passwordController,
                         decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.lock, color: Colors.grey),
@@ -169,8 +190,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           filled: true,
                         ),
                         obscureText: true,
-                        validator: (value) =>
-                        value == null || value.length < 6
+                        validator: (value) => value == null || value.length < 6
                             ? 'Password must be at least 6 characters'
                             : null,
                       ),

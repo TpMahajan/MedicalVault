@@ -10,7 +10,7 @@ import 'SettingPages/TermsOfServicesPage.dart';
 import 'loginScreen.dart';
 
 class SettingsPage extends StatefulWidget {
-  final Map<String, dynamic> userData; // 👈 user data pass hoga
+  final Map<String, dynamic> userData; // 👈 full user data map
 
   const SettingsPage({super.key, required this.userData});
 
@@ -31,7 +31,7 @@ class _SettingsPageState extends State<SettingsPage> {
         widget.userData["email"]?.toString() ?? "youremail@gmail.com";
     final String mobile = widget.userData["mobile"]?.toString() ?? "N/A";
     final String aadhaar = widget.userData["aadhaar"]?.toString() ?? "N/A";
-    final String dob = widget.userData["dob"]?.toString() ?? "N/A";
+    final String dob = widget.userData["dateOfBirth"]?.toString() ?? "N/A";
 
     return Scaffold(
       body: ListView(
@@ -43,11 +43,24 @@ class _SettingsPageState extends State<SettingsPage> {
             "Personal Details",
             "View and edit your personal details",
             ProfileName(
-              name: name,
-              email: email,
-              mobile: mobile,
-              aadhaar: aadhaar,
-              dob: dob,
+              userData: {
+                "name": name,
+                "email": email,
+                "mobile": mobile,
+                "aadhaar": aadhaar,
+                "dateOfBirth": dob,
+                "age": widget.userData["age"],
+                "gender": widget.userData["gender"],
+                "bloodType": widget.userData["bloodType"],
+                "height": widget.userData["height"],
+                "weight": widget.userData["weight"],
+                "lastVisit": widget.userData["lastVisit"],
+                "nextAppointment": widget.userData["nextAppointment"],
+                "emergencyContact": widget.userData["emergencyContact"],
+                "medicalHistory": widget.userData["medicalHistory"] ?? [],
+                "medications": widget.userData["medications"] ?? [],
+                "medicalRecords": widget.userData["medicalRecords"] ?? [],
+              },
             ),
           ),
           const SectionTitle("Security"),
@@ -60,9 +73,8 @@ class _SettingsPageState extends State<SettingsPage> {
               approvals, (val) {
                 setState(() => approvals = val);
               }),
-          _buildSwitchTile(
-              "Reminders", "Receive notifications for reminders", reminders,
-                  (val) {
+          _buildSwitchTile("Reminders", "Receive notifications for reminders",
+              reminders, (val) {
                 setState(() => reminders = val);
               }),
           _buildSwitchTile("System", "Receive system notifications",
@@ -71,10 +83,12 @@ class _SettingsPageState extends State<SettingsPage> {
               }),
           const SectionTitle("Privacy & Terms"),
           _buildTile(Icons.privacy_tip, "Privacy Policy", "", PrivacyPolicy()),
-          _buildTile(Icons.description, "Terms of Service", "", TermsOfService()),
+          _buildTile(
+              Icons.description, "Terms of Service", "", TermsOfService()),
           const SectionTitle("Help & Support"),
           _buildTile(Icons.help_outline, "FAQs", "", FAQs()),
-          _buildTile(Icons.support_agent, "Contact Support", "", ContactSupportScreen()),
+          _buildTile(
+              Icons.support_agent, "Contact Support", "", ContactSupportScreen()),
           const SectionTitle("Account"),
           _buildTile(Icons.logout, "Logout", "", LoginScreen()),
         ],

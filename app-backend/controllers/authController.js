@@ -52,7 +52,7 @@ export const register = async (req, res) => {
     });
   } catch (error) {
     console.error('Register error:', error);
-    
+
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
@@ -136,7 +136,7 @@ export const login = async (req, res) => {
 export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
-    
+
     res.json({
       success: true,
       data: {
@@ -152,13 +152,38 @@ export const getMe = async (req, res) => {
   }
 };
 
+// @desc    Update current user profile
+// @route   PUT /api/auth/me
+// @access  Private
+export const updateMe = async (req, res) => {
+  try {
+    // All fields from req.body can include age, gender, emergencyContact, etc.
+    const updates = req.body;
+
+    const user = await User.findByIdAndUpdate(req.user._id, updates, {
+      new: true,
+      runValidators: true
+    }).select('-password');
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: { user }
+    });
+  } catch (error) {
+    console.error('Update me error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
 // @desc    Logout user (optional - client can just delete token)
 // @route   POST /api/auth/logout
 // @access  Private
 export const logout = async (req, res) => {
   try {
-    // In a more complex setup, you might want to blacklist the token
-    // For now, we'll just return a success message
     res.json({
       success: true,
       message: 'Logged out successfully'

@@ -25,6 +25,15 @@ const UserSchema = new mongoose.Schema(
       trim: true,
       maxlength: [50, 'Name cannot exceed 50 characters']
     },
+    mobile: {
+      type: String,
+      required: [true, "Mobile number is required"],
+      trim: true,
+    },
+    aadhaar: {
+      type: String,
+      default: null, // optional now
+    },
     fcmToken: {
       type: String,
       default: null
@@ -40,12 +49,57 @@ const UserSchema = new mongoose.Schema(
     profilePicture: {
       type: String,
       default: null
-    }
+    },
+
+    // 🔹 Extra patient details
+    age: { type: Number, default: null },
+    gender: { type: String, default: null },
+    dateOfBirth: { type: Date, default: null },
+    bloodType: { type: String, default: null },
+    height: { type: String, default: null },
+    weight: { type: String, default: null },
+    lastVisit: { type: Date, default: null },
+    nextAppointment: { type: Date, default: null },
+
+    emergencyContact: {
+      name: { type: String, default: null },
+      relationship: { type: String, default: null },
+      phone: { type: String, default: null }
+    },
+
+    medicalHistory: [
+      {
+        condition: String,
+        diagnosed: Date,
+        status: { type: String, enum: ['Active', 'Controlled', 'Inactive'] }
+      }
+    ],
+
+    medications: [
+      {
+        name: String,
+        dosage: String,
+        frequency: String,
+        prescribed: Date
+      }
+    ],
+
+    medicalRecords: [
+      {
+        type: String, // Lab Report, Imaging, Prescription
+        title: String,
+        date: Date,
+        status: { type: String, enum: ['reviewed', 'pending'] },
+        fileType: String, // pdf, image
+        size: String,
+        fileUrl: String // Cloudinary URL
+      }
+    ]
   },
   {
     timestamps: true,
     toJSON: {
-      transform: function(doc, ret) {
+      transform: function (doc, ret) {
         delete ret.password;
         return ret;
       }
@@ -54,9 +108,9 @@ const UserSchema = new mongoose.Schema(
 );
 
 // Hash password before saving
-UserSchema.pre('save', async function(next) {
+UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  
+
   try {
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
@@ -67,24 +121,24 @@ UserSchema.pre('save', async function(next) {
 });
 
 // Method to compare password
-UserSchema.methods.comparePassword = async function(candidatePassword) {
+UserSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
 // Method to update FCM token
-UserSchema.methods.updateFCMToken = function(token) {
+UserSchema.methods.updateFCMToken = function (token) {
   this.fcmToken = token;
   return this.save();
 };
 
 // Method to update last login
-UserSchema.methods.updateLastLogin = function() {
+UserSchema.methods.updateLastLogin = function () {
   this.lastLogin = new Date();
   return this.save();
 };
 
 // Static method to find user by email
-UserSchema.statics.findByEmail = function(email) {
+UserSchema.statics.findByEmail = function (email) {
   return this.findOne({ email: email.toLowerCase() });
 };
 
