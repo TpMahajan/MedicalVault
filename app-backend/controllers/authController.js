@@ -187,7 +187,7 @@ export const updateMe = async (req, res) => {
     });
 
     // Update user in DB
-    const user = await User.findByIdAndUpdate(req.user._id, updates, {
+    const user = await User.findByIdAndUpdate(req.user._id || req.user.id, updates, {
       new: true,
       runValidators: true,
     }).select("-password");

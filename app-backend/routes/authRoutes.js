@@ -112,4 +112,9 @@ router.get("/me", auth, getMe);
 // ================= Update Current User =================
 router.put("/me", auth, updateMe);
 
+// ================= Test Endpoint =================
+router.get("/test", (req, res) => {
+  res.json({ message: "Test endpoint working", timestamp: new Date().toISOString() });
+});
+
 export default router;
