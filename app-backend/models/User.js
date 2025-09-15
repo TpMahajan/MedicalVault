@@ -18,7 +18,7 @@ const UserSchema = new mongoose.Schema(
     },
     password: { type: String, required: true, minlength: 6 },
     mobile: { type: String, required: true, trim: true },
-    aadhaar: { type: String, default: null }, // optional
+    aadhaar: { type: String, default: null }, // optional, editable only from profile page
 
     // 🔹 Profile update fields
     dateOfBirth: { type: String, default: null }, // stored as "YYYY-MM-DD"

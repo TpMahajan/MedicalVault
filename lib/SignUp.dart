@@ -17,7 +17,6 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _aadhaarController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
@@ -25,7 +24,8 @@ class _SignUpPageState extends State<SignUpPage> {
   Future<void> _signupUser() async {
     if (!_formKey.currentState!.validate() || !_agreeToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚠️ Please fill all fields & accept Terms")),
+        const SnackBar(
+            content: Text("⚠️ Please fill all fields & accept Terms")),
       );
       return;
     }
@@ -34,14 +34,14 @@ class _SignUpPageState extends State<SignUpPage> {
 
     try {
       final response = await http.post(
-        Uri.parse("https://healthvault-backend-c6xl.onrender.com/api/auth/signup"),
+        Uri.parse(
+            "https://healthvault-backend-c6xl.onrender.com/api/auth/signup"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "name": _nameController.text.trim(),
           "email": _emailController.text.trim(),
           "password": _passwordController.text.trim(),
           "mobile": _phoneController.text.trim(),
-          "aadhaar": _aadhaarController.text.trim(),
         }),
       );
 
@@ -87,7 +87,8 @@ class _SignUpPageState extends State<SignUpPage> {
                       CircleAvatar(
                         radius: 30,
                         backgroundColor: Colors.blue[100],
-                        child: const Icon(Icons.shield, color: Colors.blue, size: 40),
+                        child: const Icon(Icons.shield,
+                            color: Colors.blue, size: 40),
                       ),
                       const SizedBox(height: 16),
                       const Text(
@@ -123,8 +124,9 @@ class _SignUpPageState extends State<SignUpPage> {
                           labelText: 'Full Name',
                           filled: true,
                         ),
-                        validator: (value) =>
-                        value == null || value.isEmpty ? 'Name is required' : null,
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Name is required'
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -136,7 +138,8 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
-                          if (value == null || value.isEmpty) return 'Email is required';
+                          if (value == null || value.isEmpty)
+                            return 'Email is required';
                           if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                             return 'Enter a valid email';
                           }
@@ -164,25 +167,6 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
-                        controller: _aadhaarController,
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.credit_card, color: Colors.grey),
-                          labelText: 'Aadhaar Number',
-                          filled: true,
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Aadhaar number is required';
-                          }
-                          if (!RegExp(r'^[0-9]{12}$').hasMatch(value)) {
-                            return 'Enter a valid 12-digit Aadhaar number';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
                         controller: _passwordController,
                         decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.lock, color: Colors.grey),
@@ -202,7 +186,8 @@ class _SignUpPageState extends State<SignUpPage> {
                   title: const Text(
                       'By signing up, you agree to our Terms of Service and Privacy Policy.'),
                   value: _agreeToTerms,
-                  onChanged: (val) => setState(() => _agreeToTerms = val ?? false),
+                  onChanged: (val) =>
+                      setState(() => _agreeToTerms = val ?? false),
                   controlAffinity: ListTileControlAffinity.leading,
                 ),
                 const SizedBox(height: 16),
@@ -227,7 +212,8 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       child: Text(
                         _isLoading ? "Creating..." : "Create Account",
-                        style: const TextStyle(fontSize: 18, color: Colors.white),
+                        style:
+                            const TextStyle(fontSize: 18, color: Colors.white),
                       ),
                     ),
                   ),

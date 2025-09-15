@@ -46,7 +46,8 @@ class _ProfileNameState extends State<ProfileName> {
               const SizedBox(height: 8),
               Text(
                 user['name'] ?? '',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               Text(
                 user['email'] ?? '',
@@ -61,8 +62,8 @@ class _ProfileNameState extends State<ProfileName> {
               const SizedBox(height: 16),
 
               // 🆔 Aadhaar
-              _infoCard(Icons.security, "Aadhaar Card Number",
-                  user['aadhaar'] ?? '',
+              _infoCard(
+                  Icons.security, "Aadhaar Card Number", user['aadhaar'] ?? '',
                   bgColor: const Color(0xFF80CBC4), textColor: Colors.white),
 
               const SizedBox(height: 16),
@@ -96,32 +97,41 @@ class _ProfileNameState extends State<ProfileName> {
               const SizedBox(height: 16),
 
               // 🔹 Emergency Contact
-              _infoCard(Icons.contact_phone, "Emergency Contact",
+              _infoCard(
+                  Icons.contact_phone,
+                  "Emergency Contact",
                   "${user['emergencyContact']?['name'] ?? ''}\n"
                       "${user['emergencyContact']?['relationship'] ?? ''}\n"
                       "${user['emergencyContact']?['phone'] ?? ''}",
-                  bgColor: Colors.red.shade200, textColor: Colors.black),
+                  bgColor: Colors.red.shade200,
+                  textColor: Colors.black),
 
               const SizedBox(height: 16),
 
               // 🔹 Medical History
-              _listCard("Medical History", user['medicalHistory'] ?? [],
-                      (item) =>
-                  "${item['condition']} (${item['status']}) - ${item['diagnosed']}"),
+              _listCard(
+                  "Medical History",
+                  user['medicalHistory'] ?? [],
+                  (item) =>
+                      "${item['condition']} (${item['status']}) - ${item['diagnosed']}"),
 
               const SizedBox(height: 16),
 
               // 🔹 Medications
-              _listCard("Medications", user['medications'] ?? [],
-                      (item) =>
-                  "${item['name']} - ${item['dosage']} (${item['frequency']})"),
+              _listCard(
+                  "Medications",
+                  user['medications'] ?? [],
+                  (item) =>
+                      "${item['name']} - ${item['dosage']} (${item['frequency']})"),
 
               const SizedBox(height: 16),
 
               // 🔹 Medical Records
-              _listCard("Medical Records", user['medicalRecords'] ?? [],
-                      (item) =>
-                  "${item['title']} (${item['type']}) - ${item['date']} [${item['status']}]"),
+              _listCard(
+                  "Medical Records",
+                  user['medicalRecords'] ?? [],
+                  (item) =>
+                      "${item['title']} (${item['type']}) - ${item['date']} [${item['status']}]"),
 
               const SizedBox(height: 32),
 
@@ -196,7 +206,7 @@ class _ProfileNameState extends State<ProfileName> {
         children: [
           Text(title,
               style:
-              const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           if (items.isEmpty)
             const Text("No data available",
@@ -241,8 +251,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
       "ecRelationship",
       "ecPhone"
     ]) {
-      _controllers[field] =
-          TextEditingController(text: widget.userData[field]?.toString() ?? "");
+      String value = "";
+      if (field.startsWith("ec")) {
+        // Handle emergency contact fields
+        String ecField = field.substring(2).toLowerCase(); // Remove "ec" prefix
+        value = widget.userData["emergencyContact"]?[ecField]?.toString() ?? "";
+      } else {
+        value = widget.userData[field]?.toString() ?? "";
+      }
+      _controllers[field] = TextEditingController(text: value);
     }
   }
 
@@ -257,22 +274,40 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return;
     }
 
-    final response = await http.put(
-      Uri.parse("https://healthvault-backend-c6xl.onrender.com/api/auth/me"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
-      body: jsonEncode(updatedUser),
-    );
+    try {
+      final response = await http.put(
+        Uri.parse("https://healthvault-backend-c6xl.onrender.com/api/auth/me"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode(updatedUser),
+      );
 
-    if (response.statusCode == 200) {
-      final body = jsonDecode(response.body);
-      Navigator.pop(context, body["data"]); // return updated user
-    } else {
-      print("❌ Error: ${response.body}");
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+
+        // Update SharedPreferences with new user data
+        await prefs.setString('userData', jsonEncode(body["data"]));
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ Profile updated successfully")),
+        );
+
+        Navigator.pop(context, body["data"]); // return updated user
+      } else {
+        final errorBody = jsonDecode(response.body);
+        print("❌ Error: ${response.body}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  "❌ ${errorBody['message'] ?? 'Failed to update profile'}")),
+        );
+      }
+    } catch (e) {
+      print("❌ Exception: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Failed to update profile")),
+        SnackBar(content: Text("❌ Error: $e")),
       );
     }
   }

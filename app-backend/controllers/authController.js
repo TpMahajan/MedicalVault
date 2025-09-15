@@ -199,7 +199,26 @@ export const updateMe = async (req, res) => {
     res.json({
       success: true,
       message: "Profile updated successfully",
-      data: user,
+      data: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+        aadhaar: user.aadhaar,
+        dateOfBirth: user.dateOfBirth,
+        age: user.age,
+        gender: user.gender,
+        bloodType: user.bloodType,
+        height: user.height,
+        weight: user.weight,
+        lastVisit: user.lastVisit,
+        nextAppointment: user.nextAppointment,
+        emergencyContact: user.emergencyContact,
+        medicalHistory: user.medicalHistory,
+        medications: user.medications,
+        medicalRecords: user.medicalRecords,
+        profilePicture: user.profilePicture,
+      },
     });
   } catch (error) {
     console.error("Update me error:", error);

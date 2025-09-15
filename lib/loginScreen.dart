@@ -11,8 +11,7 @@ class LoginScreen extends StatelessWidget {
   static const String baseUrl =
       "https://healthvault-backend-c6xl.onrender.com/api";
 
-  Future<Map<String, dynamic>?> loginUser(
-      String email, String password) async {
+  Future<Map<String, dynamic>?> loginUser(String email, String password) async {
     try {
       final url = Uri.parse("$baseUrl/auth/login");
       final response = await http.post(
@@ -26,7 +25,9 @@ class LoginScreen extends StatelessWidget {
 
         // 👇 Save the session token in SharedPreferences
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('session_token', data['token']); // ✅
+        await prefs.setString('authToken', data['token']); // ✅ Updated key name
+        await prefs.setString(
+            'userData', jsonEncode(data['user'])); // ✅ Save user data
 
         return data["user"];
       } else {
@@ -49,8 +50,7 @@ class LoginScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding:
-          const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -87,7 +87,6 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 40),
-
               TextField(
                 controller: Email,
                 decoration: InputDecoration(
@@ -132,38 +131,31 @@ class LoginScreen extends StatelessWidget {
                     if (email.isEmpty || password.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                            content:
-                            Text("⚠️ Please enter email & password")),
+                            content: Text("⚠️ Please enter email & password")),
                       );
                       return;
                     }
 
                     Map<String, dynamic>? userData =
-                    await loginUser(email, password);
+                        await loginUser(email, password);
 
                     if (userData != null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("✅ Login successful")),
+                        const SnackBar(content: Text("✅ Login successful")),
                       );
 
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => Dashboard1(
-                            userData: {
-                              "id": userData["id"].toString(),
-                              "name": userData["name"],
-                              "email": userData["email"],
-                            },
+                            userData: userData, // Pass complete userData
                           ),
                         ),
                       );
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                            content:
-                            Text("❌ Invalid email or password")),
+                            content: Text("❌ Invalid email or password")),
                       );
                     }
                   },
@@ -177,8 +169,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                   child: const Text(
                     'Log In',
-                    style:
-                    TextStyle(fontSize: 18, color: Colors.white),
+                    style: TextStyle(fontSize: 18, color: Colors.white),
                   ),
                 ),
               ),

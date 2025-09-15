@@ -8,10 +8,14 @@ import { getMe, updateMe } from "../controllers/authController.js";
 const router = express.Router();
 
 // ================= Signup =================
-// ================= Signup =================
 router.post("/signup", async (req, res) => {
   try {
-    const { name, email, password, mobile, aadhaar } = req.body;
+    const { name, email, password, mobile } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !password || !mobile) {
+      return res.status(400).json({ message: "Name, email, mobile, and password are required" });
+    }
 
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
@@ -23,10 +27,17 @@ router.post("/signup", async (req, res) => {
       email: email.toLowerCase(),
       password,
       mobile,
-      aadhaar
+      // aadhaar is not required at signup, defaults to null
     });
 
     await newUser.save();
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: newUser._id, email: newUser.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
     res.status(201).json({
       message: "User registered successfully",
@@ -35,8 +46,8 @@ router.post("/signup", async (req, res) => {
         name: newUser.name,
         email: newUser.email,
         mobile: newUser.mobile,
-        aadhaar: newUser.aadhaar,
       },
+      token,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -61,6 +72,10 @@ router.post("/login", async (req, res) => {
       { expiresIn: "7d" }
     );
 
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
     res.status(200).json({
       message: "Login successful",
       user: {
@@ -69,6 +84,19 @@ router.post("/login", async (req, res) => {
         email: user.email,
         mobile: user.mobile,
         aadhaar: user.aadhaar,
+        dateOfBirth: user.dateOfBirth,
+        age: user.age,
+        gender: user.gender,
+        bloodType: user.bloodType,
+        height: user.height,
+        weight: user.weight,
+        lastVisit: user.lastVisit,
+        nextAppointment: user.nextAppointment,
+        emergencyContact: user.emergencyContact,
+        medicalHistory: user.medicalHistory,
+        medications: user.medications,
+        medicalRecords: user.medicalRecords,
+        profilePicture: user.profilePicture,
       },
       token,
     });
