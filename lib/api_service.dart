@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'Document_model.dart';
+import 'package:url_launcher/url_launcher.dart'; // ✅ add for preview
 
 class ApiService {
   // 🔹 Render Hosted Backend URL
@@ -11,19 +12,37 @@ class ApiService {
 
   // ================= Preview Document =================
   /// Ab preview ke liye Cloudinary ka direct URL use hoga.
-  static Future<void> previewDocument(String fileUrl) async {
+  /// Agar file Cloudinary pe `raw/upload/` ke saath hai (octet-stream),
+  /// to Google Docs Viewer ka fallback use hoga.
+  static Future<String?> previewDocument(String fileUrl) async {
     try {
       if (!fileUrl.startsWith("http")) {
         throw "Invalid file URL";
       }
 
-      // 🔹 Bas Cloudinary URL open karna hai
-      debugPrint("📂 Preview: $fileUrl");
+      String previewUrl = fileUrl;
 
-      // Flutter me preview ke liye tum `url_launcher` ya `open_filex` use kar sakte ho
-      // yahan sirf URL return karna kaafi hai, UI side me open karna hoga
+      // ✅ Special handling for PDFs with wrong mimetype (octet-stream → raw/upload/)
+      if (fileUrl.toLowerCase().endsWith(".pdf") && fileUrl.contains("/raw/")) {
+        previewUrl =
+        "https://docs.google.com/viewer?url=${Uri.encodeComponent(fileUrl)}&embedded=true";
+        debugPrint("🔄 Using Google Docs fallback for PDF: $previewUrl");
+      } else {
+        debugPrint("📂 Direct preview: $previewUrl");
+      }
+
+      // ✅ Try to launch
+      final uri = Uri.parse(previewUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return previewUrl;
+      } else {
+        debugPrint("⚠️ Could not launch $previewUrl");
+        return null;
+      }
     } catch (e) {
       debugPrint("❌ Error previewing document: $e");
+      return null;
     }
   }
 

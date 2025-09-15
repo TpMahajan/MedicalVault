@@ -3,13 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:hello/dashboard1.dart';
 import 'package:hello/SignUp.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart'; // 👈 Added
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
-  static const String baseUrl = "https://healthvault-backend-c6xl.onrender.com/api";
+  static const String baseUrl =
+      "https://healthvault-backend-c6xl.onrender.com/api";
 
-  Future<Map<String, dynamic>?> loginUser(String email, String password) async {
+  Future<Map<String, dynamic>?> loginUser(
+      String email, String password) async {
     try {
       final url = Uri.parse("$baseUrl/auth/login");
       final response = await http.post(
@@ -20,6 +23,11 @@ class LoginScreen extends StatelessWidget {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+
+        // 👇 Save the session token in SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('session_token', data['token']); // ✅
+
         return data["user"];
       } else {
         print("Login failed: ${response.body}");
@@ -41,7 +49,8 @@ class LoginScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
+          padding:
+          const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -52,7 +61,8 @@ class LoginScreen extends StatelessWidget {
                     CircleAvatar(
                       radius: 30,
                       backgroundColor: Colors.blue[100],
-                      child: const Icon(Icons.shield, color: Colors.blue, size: 40),
+                      child: const Icon(Icons.shield,
+                          color: Colors.blue, size: 40),
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -121,16 +131,20 @@ class LoginScreen extends StatelessWidget {
 
                     if (email.isEmpty || password.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("⚠️ Please enter email & password")),
+                        const SnackBar(
+                            content:
+                            Text("⚠️ Please enter email & password")),
                       );
                       return;
                     }
 
-                    Map<String, dynamic>? userData = await loginUser(email, password);
+                    Map<String, dynamic>? userData =
+                    await loginUser(email, password);
 
                     if (userData != null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("✅ Login successful")),
+                        const SnackBar(
+                            content: Text("✅ Login successful")),
                       );
 
                       Navigator.push(
@@ -147,7 +161,9 @@ class LoginScreen extends StatelessWidget {
                       );
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("❌ Invalid email or password")),
+                        const SnackBar(
+                            content:
+                            Text("❌ Invalid email or password")),
                       );
                     }
                   },
@@ -161,7 +177,8 @@ class LoginScreen extends StatelessWidget {
                   ),
                   child: const Text(
                     'Log In',
-                    style: TextStyle(fontSize: 18, color: Colors.white),
+                    style:
+                    TextStyle(fontSize: 18, color: Colors.white),
                   ),
                 ),
               ),
@@ -174,7 +191,8 @@ class LoginScreen extends StatelessWidget {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const SignUpPage()),
+                        MaterialPageRoute(
+                            builder: (context) => const SignUpPage()),
                       );
                     },
                     child: const Text(
