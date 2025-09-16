@@ -213,4 +213,42 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// ---------------- Grouped Files by Category ----------------
+router.get("/grouped/:email", async (req, res) => {
+  try {
+    const { email } = req.params;
+    const files = await File.find({ userId: email });
+
+    const grouped = {
+      reports: files.filter(f => f.category?.toLowerCase() === "report"),
+      prescriptions: files.filter(f => f.category?.toLowerCase() === "prescription"),
+      bills: files.filter(f => f.category?.toLowerCase() === "bill"),
+      insurance: files.filter(f => f.category?.toLowerCase() === "insurance"),
+      others: files.filter(
+        f =>
+          !["report", "prescription", "bill", "insurance"].includes(
+            f.category?.toLowerCase()
+          )
+      ),
+    };
+
+    res.json({
+      success: true,
+      email,
+      counts: {
+        reports: grouped.reports.length,
+        prescriptions: grouped.prescriptions.length,
+        bills: grouped.bills.length,
+        insurance: grouped.insurance.length,
+        others: grouped.others.length,
+      },
+      records: grouped,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching grouped files:", error);
+    res.status(500).json({ message: "Failed to fetch grouped files" });
+  }
+});
+
+
 export default router;

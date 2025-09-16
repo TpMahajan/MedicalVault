@@ -18,7 +18,6 @@ import connectDB from "./config/database.js";
 import authRoutes from "./routes/authRoutes.js";
 import documentRoutes from "./routes/document.js";
 import qrRoutes from "./routes/qrRoutes.js";
-import filesRoutes from "./routes/files.js";
 
 
 const app = express();
@@ -49,7 +48,6 @@ app.use("/uploads", express.static(process.env.UPLOAD_DIR || path.join(__dirname
 app.use("/api/auth", authRoutes);
 app.use("/api/files", documentRoutes);
 app.use("/api/qr", qrRoutes);
-app.use("/api/files", filesRoutes);
 
 
 // Health check
