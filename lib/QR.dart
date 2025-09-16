@@ -13,7 +13,7 @@ import 'package:uuid/uuid.dart';
 import 'HowQrAcessWorks.dart';
 
 /// 👉 Backend base URL (no trailing slash)
-const String kApiBase = 'https://healthvault-backend-c6xl.onrender.com';
+const String kApiBase = 'https://backend-medicalvault.onrender.com';
 
 class QRPage extends StatefulWidget {
   const QRPage({super.key});

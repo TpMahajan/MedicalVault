@@ -9,7 +9,7 @@ class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
   static const String baseUrl =
-      "https://healthvault-backend-c6xl.onrender.com/api";
+      "https://backend-medicalvault.onrender.com/api";
 
   Future<Map<String, dynamic>?> loginUser(String email, String password) async {
     try {

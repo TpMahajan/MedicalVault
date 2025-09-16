@@ -35,7 +35,7 @@ class _SignUpPageState extends State<SignUpPage> {
     try {
       final response = await http.post(
         Uri.parse(
-            "https://healthvault-backend-c6xl.onrender.com/api/auth/signup"),
+            "https://backend-medicalvault.onrender.com/api/auth/signup"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "name": _nameController.text.trim(),

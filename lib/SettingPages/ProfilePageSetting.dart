@@ -38,7 +38,7 @@ class _ProfileNameState extends State<ProfileName> {
       if (token == null) return;
 
       final response = await http.get(
-        Uri.parse("https://healthvault-backend-c6xl.onrender.com/api/auth/me"),
+        Uri.parse("https://backend-medicalvault.onrender.com/api/auth/me"),
         headers: {"Authorization": "Bearer $token"},
       );
 
@@ -65,22 +65,19 @@ class _ProfileNameState extends State<ProfileName> {
 
       final email = user['email'];
       final response = await http.get(
-        Uri.parse("https://healthvault-backend-c6xl.onrender.com/api/files/$email"),
+        Uri.parse("https://backend-medicalvault.onrender.com/api/files/grouped/$email"),
         headers: {"Authorization": "Bearer $token"},
       );
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
 
-        // ✅ response.records ke andar categories hai
-        final records = body["records"] ?? {};
-
         setState(() {
           medicalRecords = {
-            "reports": List<Map<String, dynamic>>.from(records["reports"] ?? []),
-            "prescriptions": List<Map<String, dynamic>>.from(records["prescriptions"] ?? []),
-            "bills": List<Map<String, dynamic>>.from(records["bills"] ?? []),
-            "insurance": List<Map<String, dynamic>>.from(records["insurance"] ?? []),
+            "reports": List<Map<String, dynamic>>.from(body["reports"] ?? []),
+            "prescriptions": List<Map<String, dynamic>>.from(body["prescriptions"] ?? []),
+            "bills": List<Map<String, dynamic>>.from(body["bills"] ?? []),
+            "insurance": List<Map<String, dynamic>>.from(body["insurance"] ?? []),
           };
         });
       } else {
@@ -92,6 +89,7 @@ class _ProfileNameState extends State<ProfileName> {
   }
 
 
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -99,8 +97,8 @@ class _ProfileNameState extends State<ProfileName> {
         body: Center(
           child: Lottie.asset(
             'assets/LoadingClock.json',
-            width: 80,
-            height: 80,
+            width: 100,
+            height: 100,
           ),
         ),
       );
@@ -435,7 +433,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     try {
       final response = await http.put(
-        Uri.parse("https://healthvault-backend-c6xl.onrender.com/api/auth/me"),
+        Uri.parse("https://backend-medicalvault.onrender.com/api/auth/me"),
         headers: {"Authorization": "Bearer $token", "Content-Type": "application/json"},
         body: jsonEncode(updatedUser),
       );
