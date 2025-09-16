@@ -55,14 +55,18 @@ const UserSchema = new mongoose.Schema(
 
     medicalRecords: [
       {
-        type: String, // Lab Report, Imaging, Prescription
+        type: {
+          type: String,
+          enum: ["report", "prescription", "bill", "insurance"],
+          required: true
+        },
         title: String,
-        date: String,
-        status: String, // reviewed, pending
-        fileType: String, // pdf, image
+        date: Date,
+        status: { type: String, enum: ["reviewed", "pending"] },
+        fileType: String, // pdf, image, etc
         size: String,
-        fileUrl: String, // Cloudinary URL
-      },
+        fileUrl: String
+      }
     ],
 
     // 🔹 System fields

@@ -2,9 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lottie/lottie.dart';
 
 class ProfileName extends StatefulWidget {
-  final Map<String, dynamic> userData; // Pass all fields here
+  final Map<String, dynamic> userData; // Initial data from login
 
   const ProfileName({super.key, required this.userData});
 
@@ -14,128 +15,161 @@ class ProfileName extends StatefulWidget {
 
 class _ProfileNameState extends State<ProfileName> {
   late Map<String, dynamic> user;
+  bool _loading = true;
+  Map<String, List<dynamic>> medicalRecords = {
+    "reports": [],
+    "prescriptions": [],
+    "bills": [],
+    "insurance": [],
+  };
 
   @override
   void initState() {
     super.initState();
     user = widget.userData;
+    _fetchProfile();
+    _fetchMedicalRecords(); // fetch files separately
+  }
+
+  Future<void> _fetchProfile() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("authToken");
+      if (token == null) return;
+
+      final response = await http.get(
+        Uri.parse("https://healthvault-backend-c6xl.onrender.com/api/auth/me"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        setState(() {
+          user = body["data"]["user"];
+          _loading = false;
+        });
+      } else {
+        setState(() => _loading = false);
+      }
+    } catch (e) {
+      print("❌ Fetch error: $e");
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _fetchMedicalRecords() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("authToken");
+      if (token == null) return;
+
+      final email = user['email']; // using email as userId
+      final response = await http.get(
+        Uri.parse("https://healthvault-backend-c6xl.onrender.com/api/files/$email"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        setState(() {
+          medicalRecords = {
+            "reports": body["reports"] ?? [],
+            "prescriptions": body["prescriptions"] ?? [],
+            "bills": body["bills"] ?? [],
+            "insurance": body["insurance"] ?? [],
+          };
+        });
+      }
+    } catch (e) {
+      print("❌ Medical Records fetch error: $e");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        body: Center(
+          child: Lottie.asset(
+            'assets/LoadingClock.json',
+            width: 80,
+            height: 80,
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: const Color(0xFFE3F2FD),
+      backgroundColor: const Color(0xFFF9FAFB),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          padding: const EdgeInsets.all(12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Align(
-                alignment: Alignment.topLeft,
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.black),
-                  onPressed: () => Navigator.pop(context),
+              // Profile Header
+              Card(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      const CircleAvatar(
+                        radius: 40,
+                        backgroundImage: NetworkImage(
+                            'https://cdn-icons-png.flaticon.com/512/9203/9203764.png'),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(user['name'] ?? '',
+                          style: const TextStyle(
+                              fontSize: 22, fontWeight: FontWeight.bold)),
+                      Text(user['email'] ?? '',
+                          style: const TextStyle(color: Colors.grey)),
+                    ],
+                  ),
                 ),
               ),
-              const CircleAvatar(
-                radius: 40,
-                backgroundImage: NetworkImage(
-                    'https://cdn-icons-png.flaticon.com/512/9203/9203764.png'),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                user['name'] ?? '',
-                style:
-                const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                user['email'] ?? '',
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 32),
 
-              // 📱 Mobile
-              _infoCard(Icons.phone, "Mobile Number", user['mobile'] ?? '',
-                  bgColor: Colors.white, textColor: Colors.grey),
+              // Sections
+              _sectionTitle("Personal Information"),
+              _infoRow(Icons.phone, "Mobile", user['mobile'] ?? ''),
+              _infoRow(Icons.security, "Aadhaar", user['aadhaar'] ?? ''),
+              _infoRow(Icons.calendar_today, "DOB",
+                  user['dateOfBirth']?.toString().split("T")[0] ?? ''),
 
-              const SizedBox(height: 16),
+              _sectionTitle("Health Information"),
+              _infoRow(Icons.person, "Gender", user['gender'] ?? ''),
+              _infoRow(Icons.water_drop, "Blood Type", user['bloodType'] ?? ''),
+              _infoRow(Icons.height, "Height", user['height'] ?? ''),
+              _infoRow(Icons.monitor_weight, "Weight", user['weight'] ?? ''),
+              _infoRow(Icons.calendar_month, "Last Visit",
+                  user['lastVisit']?.toString().split("T")[0] ?? ''),
+              _infoRow(Icons.event, "Next Appointment",
+                  user['nextAppointment']?.toString().split("T")[0] ?? ''),
 
-              // 🆔 Aadhaar
-              _infoCard(
-                  Icons.security, "Aadhaar Card Number", user['aadhaar'] ?? '',
-                  bgColor: const Color(0xFF80CBC4), textColor: Colors.white),
+              _sectionTitle("Emergency Contact"),
+              _infoRow(Icons.person,
+                  "Name", user['emergencyContact']?['name'] ?? ''),
+              _infoRow(Icons.people, "Relationship",
+                  user['emergencyContact']?['relationship'] ?? ''),
+              _infoRow(Icons.phone,
+                  "Phone", user['emergencyContact']?['phone'] ?? ''),
 
-              const SizedBox(height: 16),
+              _sectionTitle("Medical History"),
+              _listSection(user['medicalHistory'] ?? [], (item) =>
+              "${item['condition']} (${item['status']}) - ${item['diagnosed']}"),
 
-              // 🎂 DOB
-              _infoCard(Icons.calendar_today, "Date of Birth",
-                  user['dateOfBirth'] ?? '',
-                  bgColor: Colors.white, textColor: Colors.grey),
+              _sectionTitle("Medications"),
+              _listSection(user['medications'] ?? [], (item) =>
+              "${item['name']} - ${item['dosage']} (${item['frequency']})"),
 
-              const SizedBox(height: 16),
+              // ✅ Medical Records from `files` collection
+              _medicalRecordsSection(),
 
-              // 🔹 Age, Gender, Blood Type
-              _infoCard(Icons.person, "Age / Gender / Blood",
-                  "${user['age'] ?? ''} / ${user['gender'] ?? ''} / ${user['bloodType'] ?? ''}",
-                  bgColor: Colors.white, textColor: Colors.black),
+              const SizedBox(height: 20),
 
-              const SizedBox(height: 16),
-
-              // 🔹 Height, Weight
-              _infoCard(Icons.monitor_weight, "Height / Weight",
-                  "${user['height'] ?? ''} / ${user['weight'] ?? ''}",
-                  bgColor: Colors.white, textColor: Colors.black),
-
-              const SizedBox(height: 16),
-
-              // 🔹 Last Visit, Next Appointment
-              _infoCard(Icons.calendar_month, "Visits",
-                  "Last: ${user['lastVisit'] ?? ''}\nNext: ${user['nextAppointment'] ?? ''}",
-                  bgColor: Colors.white, textColor: Colors.black),
-
-              const SizedBox(height: 16),
-
-              // 🔹 Emergency Contact
-              _infoCard(
-                  Icons.contact_phone,
-                  "Emergency Contact",
-                  "${user['emergencyContact']?['name'] ?? ''}\n"
-                      "${user['emergencyContact']?['relationship'] ?? ''}\n"
-                      "${user['emergencyContact']?['phone'] ?? ''}",
-                  bgColor: Colors.red.shade200,
-                  textColor: Colors.black),
-
-              const SizedBox(height: 16),
-
-              // 🔹 Medical History
-              _listCard(
-                  "Medical History",
-                  user['medicalHistory'] ?? [],
-                      (item) =>
-                  "${item['condition']} (${item['status']}) - ${item['diagnosed']}"),
-
-              const SizedBox(height: 16),
-
-              // 🔹 Medications
-              _listCard(
-                  "Medications",
-                  user['medications'] ?? [],
-                      (item) =>
-                  "${item['name']} - ${item['dosage']} (${item['frequency']})"),
-
-              const SizedBox(height: 16),
-
-              // 🔹 Medical Records
-              _listCard(
-                  "Medical Records",
-                  user['medicalRecords'] ?? [],
-                      (item) =>
-                  "${item['title']} (${item['type']}) - ${item['date']} [${item['status']}]"),
-
-              const SizedBox(height: 32),
-
-              // ✏️ Edit Button
+              // Edit Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -156,7 +190,7 @@ class _ProfileNameState extends State<ProfileName> {
                     backgroundColor: Colors.blue,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(15),
                     ),
                   ),
                   child: const Text(
@@ -172,52 +206,80 @@ class _ProfileNameState extends State<ProfileName> {
     );
   }
 
-  Widget _infoCard(IconData icon, String title, String value,
-      {required Color bgColor, required Color textColor}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 40, color: textColor),
-          const SizedBox(height: 8),
-          Text(title,
-              style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
-          Text(value, style: TextStyle(fontSize: 16, color: textColor)),
-        ],
+  // Helpers
+  Widget _sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Text(title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      child: ListTile(
+        leading: Icon(icon, color: Colors.blue),
+        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(value.isNotEmpty ? value : "N/A",
+            style: const TextStyle(color: Colors.black87)),
       ),
     );
   }
 
-  Widget _listCard(String title, List items, String Function(dynamic) format) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style:
-              const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          if (items.isEmpty)
-            const Text("No data available",
-                style: TextStyle(color: Colors.grey)),
-          for (var item in items) Text(format(item)),
-        ],
+  Widget _listSection(List items, String Function(dynamic) format) {
+    return items.isEmpty
+        ? const Text("No data available",
+        style: TextStyle(color: Colors.grey))
+        : Column(
+      children: items
+          .map<Widget>((item) => Card(
+        child: ListTile(title: Text(format(item))),
+      ))
+          .toList(),
+    );
+  }
+
+  // ✅ Medical Records grouped by category from backend
+  Widget _medicalRecordsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle("Medical Records"),
+        _recordCategoryTile("Reports", medicalRecords["reports"] ?? []),
+        _recordCategoryTile("Prescriptions", medicalRecords["prescriptions"] ?? []),
+        _recordCategoryTile("Bills", medicalRecords["bills"] ?? []),
+        _recordCategoryTile("Insurance", medicalRecords["insurance"] ?? []),
+      ],
+    );
+  }
+
+  Widget _recordCategoryTile(String title, List items) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: ExpansionTile(
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        children: items.isEmpty
+            ? [const ListTile(title: Text("No records available"))]
+            : items.map<Widget>((item) {
+          return ListTile(
+            leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+            title: Text(item["title"] ?? "Untitled"),
+            subtitle: Text("${item["date"] ?? ''} (${item["mimeType"] ?? ''})"),
+            onTap: () {
+              final url = item["url"];
+              if (url != null) {
+                // TODO: open with url_launcher
+              }
+            },
+          );
+        }).toList(),
       ),
     );
   }
 }
 
+// ================= Edit Profile Page =================
 class EditProfilePage extends StatefulWidget {
   final Map<String, dynamic> userData;
 
@@ -253,8 +315,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     ]) {
       String value = "";
       if (field.startsWith("ec")) {
-        // Handle emergency contact fields
-        String ecField = field.substring(2).toLowerCase(); // Remove "ec" prefix
+        String ecField = field.substring(2).toLowerCase();
         value = widget.userData["emergencyContact"]?[ecField]?.toString() ?? "";
       } else {
         value = widget.userData[field]?.toString() ?? "";
@@ -286,18 +347,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
-
-        // Update SharedPreferences with new user data
         await prefs.setString('userData', jsonEncode(body["data"]));
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("✅ Profile updated successfully")),
         );
 
-        Navigator.pop(context, body["data"]); // return updated user
+        Navigator.pop(context, body["data"]);
       } else {
         final errorBody = jsonDecode(response.body);
-        print("❌ Error: ${response.body}");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(
