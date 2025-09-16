@@ -47,7 +47,7 @@ class _ProfileNameState extends State<ProfileName> {
               Text(
                 user['name'] ?? '',
                 style:
-                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               Text(
                 user['email'] ?? '',
@@ -112,8 +112,8 @@ class _ProfileNameState extends State<ProfileName> {
               _listCard(
                   "Medical History",
                   user['medicalHistory'] ?? [],
-                  (item) =>
-                      "${item['condition']} (${item['status']}) - ${item['diagnosed']}"),
+                      (item) =>
+                  "${item['condition']} (${item['status']}) - ${item['diagnosed']}"),
 
               const SizedBox(height: 16),
 
@@ -121,8 +121,8 @@ class _ProfileNameState extends State<ProfileName> {
               _listCard(
                   "Medications",
                   user['medications'] ?? [],
-                  (item) =>
-                      "${item['name']} - ${item['dosage']} (${item['frequency']})"),
+                      (item) =>
+                  "${item['name']} - ${item['dosage']} (${item['frequency']})"),
 
               const SizedBox(height: 16),
 
@@ -130,8 +130,8 @@ class _ProfileNameState extends State<ProfileName> {
               _listCard(
                   "Medical Records",
                   user['medicalRecords'] ?? [],
-                  (item) =>
-                      "${item['title']} (${item['type']}) - ${item['date']} [${item['status']}]"),
+                      (item) =>
+                  "${item['title']} (${item['type']}) - ${item['date']} [${item['status']}]"),
 
               const SizedBox(height: 32),
 
@@ -206,7 +206,7 @@ class _ProfileNameState extends State<ProfileName> {
         children: [
           Text(title,
               style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           if (items.isEmpty)
             const Text("No data available",
