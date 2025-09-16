@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
 
 class ProfileName extends StatefulWidget {
-  final Map<String, dynamic> userData; // Initial data from login
+  final Map<String, dynamic> userData;
 
   const ProfileName({super.key, required this.userData});
 
@@ -28,7 +28,7 @@ class _ProfileNameState extends State<ProfileName> {
     super.initState();
     user = widget.userData;
     _fetchProfile();
-    _fetchMedicalRecords(); // fetch files separately
+    _fetchMedicalRecords();
   }
 
   Future<void> _fetchProfile() async {
@@ -63,7 +63,7 @@ class _ProfileNameState extends State<ProfileName> {
       final token = prefs.getString("authToken");
       if (token == null) return;
 
-      final email = user['email']; // using email as userId
+      final email = user['email'];
       final response = await http.get(
         Uri.parse("https://healthvault-backend-c6xl.onrender.com/api/files/$email"),
         headers: {"Authorization": "Bearer $token"},
@@ -71,19 +71,26 @@ class _ProfileNameState extends State<ProfileName> {
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
+
+        // ✅ response.records ke andar categories hai
+        final records = body["records"] ?? {};
+
         setState(() {
           medicalRecords = {
-            "reports": body["reports"] ?? [],
-            "prescriptions": body["prescriptions"] ?? [],
-            "bills": body["bills"] ?? [],
-            "insurance": body["insurance"] ?? [],
+            "reports": List<Map<String, dynamic>>.from(records["reports"] ?? []),
+            "prescriptions": List<Map<String, dynamic>>.from(records["prescriptions"] ?? []),
+            "bills": List<Map<String, dynamic>>.from(records["bills"] ?? []),
+            "insurance": List<Map<String, dynamic>>.from(records["insurance"] ?? []),
           };
         });
+      } else {
+        print("❌ Error fetching records: ${response.body}");
       }
     } catch (e) {
       print("❌ Medical Records fetch error: $e");
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -109,6 +116,7 @@ class _ProfileNameState extends State<ProfileName> {
             children: [
               // Profile Header
               Card(
+                color: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
                 child: Padding(
@@ -164,12 +172,9 @@ class _ProfileNameState extends State<ProfileName> {
               _listSection(user['medications'] ?? [], (item) =>
               "${item['name']} - ${item['dosage']} (${item['frequency']})"),
 
-              // ✅ Medical Records from `files` collection
               _medicalRecordsSection(),
 
               const SizedBox(height: 20),
-
-              // Edit Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -206,7 +211,6 @@ class _ProfileNameState extends State<ProfileName> {
     );
   }
 
-  // Helpers
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -217,6 +221,7 @@ class _ProfileNameState extends State<ProfileName> {
 
   Widget _infoRow(IconData icon, String label, String value) {
     return Card(
+      color: Colors.white,
       margin: const EdgeInsets.symmetric(vertical: 3),
       child: ListTile(
         leading: Icon(icon, color: Colors.blue),
@@ -234,13 +239,13 @@ class _ProfileNameState extends State<ProfileName> {
         : Column(
       children: items
           .map<Widget>((item) => Card(
+        color: Colors.white,
         child: ListTile(title: Text(format(item))),
       ))
           .toList(),
     );
   }
 
-  // ✅ Medical Records grouped by category from backend
   Widget _medicalRecordsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,6 +261,7 @@ class _ProfileNameState extends State<ProfileName> {
 
   Widget _recordCategoryTile(String title, List items) {
     return Card(
+      color: Colors.white,
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ExpansionTile(
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -280,6 +286,7 @@ class _ProfileNameState extends State<ProfileName> {
 }
 
 // ================= Edit Profile Page =================
+
 class EditProfilePage extends StatefulWidget {
   final Map<String, dynamic> userData;
 
@@ -292,6 +299,9 @@ class EditProfilePage extends StatefulWidget {
 class _EditProfilePageState extends State<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final Map<String, TextEditingController> _controllers = {};
+
+  List<Map<String, dynamic>> medicalHistory = [];
+  List<Map<String, dynamic>> medications = [];
 
   @override
   void initState() {
@@ -316,57 +326,129 @@ class _EditProfilePageState extends State<EditProfilePage> {
       String value = "";
       if (field.startsWith("ec")) {
         String ecField = field.substring(2).toLowerCase();
-        value = widget.userData["emergencyContact"]?[ecField]?.toString() ?? "";
+        value =
+            widget.userData["emergencyContact"]?[ecField]?.toString() ?? "";
       } else {
         value = widget.userData[field]?.toString() ?? "";
       }
       _controllers[field] = TextEditingController(text: value);
     }
+
+    medicalHistory =
+    List<Map<String, dynamic>>.from(widget.userData["medicalHistory"] ?? []);
+    medications =
+    List<Map<String, dynamic>>.from(widget.userData["medications"] ?? []);
+  }
+
+  Future<void> _selectDate(BuildContext context, String fieldKey) async {
+    DateTime initialDate =
+        DateTime.tryParse(_controllers[fieldKey]!.text) ?? DateTime.now();
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        _controllers[fieldKey]!.text = picked.toIso8601String().split("T")[0];
+      });
+    }
+  }
+
+  void _addMedicalHistory() {
+    final conditionController = TextEditingController();
+    final statusController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Medical History"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: conditionController, decoration: const InputDecoration(labelText: "Condition")),
+            TextField(controller: statusController, decoration: const InputDecoration(labelText: "Status (active/resolved/chronic)")),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                medicalHistory.add({
+                  "condition": conditionController.text,
+                  "status": statusController.text,
+                  "diagnosed": DateTime.now().toIso8601String(),
+                });
+              });
+              Navigator.pop(context);
+            },
+            child: const Text("Add"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addMedication() {
+    final nameController = TextEditingController();
+    final dosageController = TextEditingController();
+    final freqController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Medication"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: "Medicine Name")),
+            TextField(controller: dosageController, decoration: const InputDecoration(labelText: "Dosage")),
+            TextField(controller: freqController, decoration: const InputDecoration(labelText: "Frequency")),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                medications.add({
+                  "name": nameController.text,
+                  "dosage": dosageController.text,
+                  "frequency": freqController.text,
+                });
+              });
+              Navigator.pop(context);
+            },
+            child: const Text("Add"),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _saveProfile(Map<String, dynamic> updatedUser) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("authToken");
-
-    if (token == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚠️ Not logged in")),
-      );
-      return;
-    }
+    if (token == null) return;
 
     try {
       final response = await http.put(
         Uri.parse("https://healthvault-backend-c6xl.onrender.com/api/auth/me"),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json",
-        },
+        headers: {"Authorization": "Bearer $token", "Content-Type": "application/json"},
         body: jsonEncode(updatedUser),
       );
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
         await prefs.setString('userData', jsonEncode(body["data"]));
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("✅ Profile updated successfully")),
-        );
-
         Navigator.pop(context, body["data"]);
       } else {
-        final errorBody = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(
-                  "❌ ${errorBody['message'] ?? 'Failed to update profile'}")),
-        );
+        print("❌ Error: ${response.body}");
       }
     } catch (e) {
       print("❌ Exception: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Error: $e")),
-      );
     }
   }
 
@@ -385,6 +467,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   children: [
                     TextFormField(
                       controller: _controllers[field],
+                      readOnly: field == "dateOfBirth" || field == "lastVisit" || field == "nextAppointment",
+                      onTap: (field == "dateOfBirth" || field == "lastVisit" || field == "nextAppointment")
+                          ? () => _selectDate(context, field)
+                          : null,
                       decoration: InputDecoration(
                         labelText: field,
                         border: const OutlineInputBorder(),
@@ -393,6 +479,70 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     const SizedBox(height: 16),
                   ],
                 ),
+
+              // Medical History
+              // Medical History
+              const Text("Medical History", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ...medicalHistory.asMap().entries.map((entry) {
+                final index = entry.key;
+                final mh = entry.value;
+                return Dismissible(
+                  key: Key("mh_$index"),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  onDismissed: (_) {
+                    setState(() {
+                      medicalHistory.removeAt(index);
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Medical history deleted")),
+                    );
+                  },
+                  child: ListTile(
+                    title: Text(mh["condition"]),
+                    subtitle: Text(mh["status"]),
+                  ),
+                );
+              }),
+              ElevatedButton(onPressed: _addMedicalHistory, child: const Text("Add Medical History")),
+
+              const SizedBox(height: 20),
+
+              // Medications
+              const Text("Medications", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ...medications.asMap().entries.map((entry) {
+                final index = entry.key;
+                final med = entry.value;
+                return Dismissible(
+                  key: Key("med_$index"),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  onDismissed: (_) {
+                    setState(() {
+                      medications.removeAt(index);
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Medication deleted")),
+                    );
+                  },
+                  child: ListTile(
+                    title: Text(med["name"]),
+                    subtitle: Text("${med["dosage"]} - ${med["frequency"]}"),
+                  ),
+                );
+              }),
+              ElevatedButton(onPressed: _addMedication, child: const Text("Add Medication")),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -414,18 +564,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         "name": _controllers["ecName"]!.text,
                         "relationship": _controllers["ecRelationship"]!.text,
                         "phone": _controllers["ecPhone"]!.text,
-                      }
+                      },
+                      "medicalHistory": medicalHistory,
+                      "medications": medications,
                     };
                     await _saveProfile(updatedUser);
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: const Text(
-                    "Save Changes",
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, padding: const EdgeInsets.symmetric(vertical: 16)),
+                  child: const Text("Save Changes", style: TextStyle(color: Colors.white, fontSize: 16)),
                 ),
               )
             ],
@@ -435,3 +581,4 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 }
+
