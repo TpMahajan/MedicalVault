@@ -1,5 +1,5 @@
 import express from "express";
-import File from "../models/Document.js"; // your 'files' collection schema
+import File from "../models/document.js"; // your 'files' collection schema
 
 const router = express.Router();
 
