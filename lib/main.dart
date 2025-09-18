@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'SignUp.dart';
-import 'dbHelper/mongodb.dart';
 import 'loginScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await MongoDataBase.connect();
+  // ✅ Removed MongoDB connection - now using backend API
   runApp(const MyApp());
 }
 
@@ -32,7 +31,8 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F8FF), // Light blue-ish white background
+      backgroundColor:
+          const Color(0xFFF0F8FF), // Light blue-ish white background
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),

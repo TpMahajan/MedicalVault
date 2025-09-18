@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'AppFooter.dart';
 import 'CategoryVaultPage.dart';
@@ -40,25 +41,26 @@ class _Dashboard1State extends State<Dashboard1> {
 
   Future<void> _loadDocumentCounts() async {
     try {
-      Map<String, int> counts = {
-        "Reports": 0,
-        "Prescription": 0,
-        "Bills": 0,
-        "Insurance": 0,
-      };
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString("userId") ?? "";
 
-      for (var category in counts.keys) {
-        final docs = await ApiService.fetchDocuments(
-          category: category,
-          userEmail: widget.userData["email"],
-        );
-        counts[category] = docs.length;
+      if (userId.isNotEmpty) {
+        final grouped = await ApiService.fetchGroupedDocs(userId);
+
+        if (grouped != null) {
+          final counts = grouped["counts"] as Map<String, dynamic>;
+
+          setState(() {
+            _documentCounts = {
+              "Reports": counts["reports"] ?? 0,
+              "Prescription": counts["prescriptions"] ?? 0,
+              "Bill": counts["bills"] ?? 0,
+              "Insurance": counts["insurance"] ?? 0,
+            };
+            _isLoadingCounts = false;
+          });
+        }
       }
-
-      setState(() {
-        _documentCounts = counts;
-        _isLoadingCounts = false;
-      });
     } catch (e) {
       print("Error loading document counts: $e");
       setState(() {
@@ -67,188 +69,208 @@ class _Dashboard1State extends State<Dashboard1> {
     }
   }
 
+  Future<String?> _getStoredName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString("name");
+  }
+
   @override
   Widget build(BuildContext context) {
-    final userName = widget.userData['name'] ?? "Patient";
+    final passedName = (widget.userData['name'] ?? "").toString();
 
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text(appbarTitle, style: const TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() {
-            appbarTitle = tabs[index];
-            _currentIndex = index;
-          });
-        },
-        children: [
-          // 🏠 Dashboard tab
-          RefreshIndicator(
-            onRefresh: _loadDocumentCounts,
-            child: ListView(
-              padding: const EdgeInsets.all(30.0),
-              children: [
-                Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 20,
-                      backgroundImage: NetworkImage(
-                          'https://cdn-icons-png.flaticon.com/512/9203/9203764.png'),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Hello, $userName 👋',
-                      style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                const Text("Quick Actions",
-                    style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500)),
-                const SizedBox(height: 8),
-                ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFE0E0E0),
-                    child: Icon(Icons.qr_code, color: Colors.black),
-                  ),
-                  title: const Text('Generate / Share QR'),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => QRPage()),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFE0E0E0),
-                    child: Icon(Icons.list_alt, color: Colors.black),
-                  ),
-                  title: const Text('Access Requests'),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => RequestsPage()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('My Documents',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    if (!_isLoadingCounts)
-                      Text(
-                        '${_documentCounts.values.fold(0, (sum, count) => sum + count)} total',
-                        style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                            fontWeight: FontWeight.w500),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: 4,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1,
-                  ),
-                  itemBuilder: (context, index) {
-                    final categories = [
-                      {
-                        "title": "Reports",
-                        "image": "assets/Reports.png",
-                        "category": "Reports",
-                        "count": _documentCounts["Reports"] ?? 0
-                      },
-                      {
-                        "title": "Prescriptions",
-                        "image": "assets/Prescription.png",
-                        "category": "Prescription",
-                        "count": _documentCounts["Prescription"] ?? 0
-                      },
-                      {
-                        "title": "Bills",
-                        "image": "assets/2851468.png",
-                        "category": "Bills",
-                        "count": _documentCounts["Bills"] ?? 0
-                      },
-                      {
-                        "title": "Insurance Details",
-                        "image": "assets/Insurance12.png",
-                        "category": "Insurance",
-                        "count": _documentCounts["Insurance"] ?? 0
-                      },
-                    ];
+    return FutureBuilder<String?>(
+      future: _getStoredName(),
+      builder: (context, snapshot) {
+        final userName =
+        passedName.isNotEmpty ? passedName : (snapshot.data ?? "Patient");
 
-                    final item = categories[index];
-                    return _buildCategoryCard(
-                      context,
-                      title: item["title"] as String,
-                      imagePath: item["image"] as String,
-                      category: item["category"] as String,
-                      count: item["count"] as int,
-                    );
-                  },
-                )
-              ],
-            ),
+        return Scaffold(
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            title: Text(appbarTitle,
+                style: const TextStyle(color: Colors.black)),
+            backgroundColor: Colors.white,
+            elevation: 0,
           ),
-
-          // 🔐 Vault tab
-          MyVault(
-            userId: widget.userData["id"],       // ✅ safe string
-            userEmail: widget.userData["email"],
-          ),
-
-          QRPage(),
-          RequestsPage(),
-          SettingsPage(userData: widget.userData),
-        ],
-      ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          BottomNavigationBar(
-            type: BottomNavigationBarType.fixed,
-            currentIndex: _currentIndex,
-            onTap: (index) {
+          body: PageView(
+            controller: _pageController,
+            onPageChanged: (index) {
               setState(() {
+                appbarTitle = tabs[index];
                 _currentIndex = index;
               });
-              _pageController.animateToPage(index,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut);
             },
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-              BottomNavigationBarItem(icon: Icon(Icons.lock), label: 'Vault'),
-              BottomNavigationBarItem(icon: Icon(Icons.qr_code), label: 'QR'),
-              BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Requests'),
-              BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+            children: [
+              // 🏠 Dashboard tab
+              RefreshIndicator(
+                onRefresh: _loadDocumentCounts,
+                child: ListView(
+                  padding: const EdgeInsets.all(30.0),
+                  children: [
+                    Row(
+                      children: [
+                        const CircleAvatar(
+                          radius: 20,
+                          backgroundImage: NetworkImage(
+                              'https://cdn-icons-png.flaticon.com/512/9203/9203764.png'),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Hello, $userName 👋',
+                          style: const TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    const Text("Quick Actions",
+                        style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFFE0E0E0),
+                        child: Icon(Icons.qr_code, color: Colors.black),
+                      ),
+                      title: const Text('Generate / Share QR'),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => QRPage()),
+                        );
+                      },
+                    ),
+                    ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFFE0E0E0),
+                        child: Icon(Icons.list_alt, color: Colors.black),
+                      ),
+                      title: const Text('Access Requests'),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => RequestsPage()),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('My Documents',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                        if (!_isLoadingCounts)
+                          Text(
+                            '${_documentCounts.values.fold(0, (sum, count) => sum + count)} total',
+                            style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w500),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: 4,
+                      gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 1,
+                      ),
+                      itemBuilder: (context, index) {
+                        final categories = [
+                          {
+                            "title": "Reports",
+                            "image": "assets/Reports.png",
+                            "category": "Reports",
+                            "count": _documentCounts["Reports"] ?? 0
+                          },
+                          {
+                            "title": "Prescriptions",
+                            "image": "assets/Prescription.png",
+                            "category": "Prescription",
+                            "count": _documentCounts["Prescription"] ?? 0
+                          },
+                          {
+                            "title": "Bills",
+                            "image": "assets/2851468.png",
+                            "category": "Bill",
+                            "count": _documentCounts["Bill"] ?? 0
+                          },
+                          {
+                            "title": "Insurance Details",
+                            "image": "assets/Insurance12.png",
+                            "category": "Insurance",
+                            "count": _documentCounts["Insurance"] ?? 0
+                          },
+                        ];
+
+                        final item = categories[index];
+                        return _buildCategoryCard(
+                          context,
+                          title: item["title"] as String,
+                          imagePath: item["image"] as String,
+                          category: item["category"] as String,
+                          count: item["count"] as int,
+                        );
+                      },
+                    )
+                  ],
+                ),
+              ),
+
+              // 🔐 Vault tab
+              MyVault(
+                userId: (widget.userData["id"] ?? "").toString(),
+              ),
+
+              QRPage(),
+              RequestsPage(),
+              SettingsPage(userData: widget.userData),
             ],
-            selectedItemColor: Colors.blue,
-            unselectedItemColor: Colors.grey,
           ),
-          const AppFooter(),
-        ],
-      ),
+          bottomNavigationBar: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              BottomNavigationBar(
+                type: BottomNavigationBarType.fixed,
+                currentIndex: _currentIndex,
+                onTap: (index) {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                  _pageController.animateToPage(index,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut);
+                },
+                items: const [
+                  BottomNavigationBarItem(
+                      icon: Icon(Icons.home), label: 'Home'),
+                  BottomNavigationBarItem(
+                      icon: Icon(Icons.lock), label: 'Vault'),
+                  BottomNavigationBarItem(
+                      icon: Icon(Icons.qr_code), label: 'QR'),
+                  BottomNavigationBarItem(
+                      icon: Icon(Icons.list_alt), label: 'Requests'),
+                  BottomNavigationBarItem(
+                      icon: Icon(Icons.settings), label: 'Settings'),
+                ],
+                selectedItemColor: Colors.blue,
+                unselectedItemColor: Colors.grey,
+              ),
+              const AppFooter(),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -264,7 +286,7 @@ class _Dashboard1State extends State<Dashboard1> {
           MaterialPageRoute(
             builder: (context) => CategoryVaultPage(
               category: category,
-              userEmail: widget.userData["email"],
+              userId: (widget.userData["id"] ?? "").toString(),
             ),
           ),
         );
@@ -285,7 +307,8 @@ class _Dashboard1State extends State<Dashboard1> {
             Text(title, style: const TextStyle(color: Colors.blueGrey)),
             const SizedBox(height: 4),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),

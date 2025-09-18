@@ -12,12 +12,12 @@ import 'api_service.dart';
 
 class CategoryVaultPage extends StatefulWidget {
   final String category;
-  final String userEmail;
+  final String userId;
 
   const CategoryVaultPage({
     super.key,
     required this.category,
-    required this.userEmail,
+    required this.userId,
   });
 
   @override
@@ -38,12 +38,30 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
   Future<void> _loadFiles() async {
     setState(() => _isLoading = true);
     try {
-      final docs = await ApiService.fetchDocuments(
-        category: widget.category,
-        userEmail: widget.userEmail,
-      );
+      final docs = await ApiService.fetchMyDocs(widget.userId);
+
+      // ✅ Filter by normalizedType from model
+      final filtered = docs.where((d) {
+        switch (widget.category.toLowerCase()) {
+          case "reports":
+          case "report":
+            return d.normalizedType == "report";
+          case "prescriptions":
+          case "prescription":
+            return d.normalizedType == "prescription";
+          case "bills":
+          case "bill":
+            return d.normalizedType == "bill";
+          case "insurance":
+          case "insurance details":
+            return d.normalizedType == "insurance";
+          default:
+            return false;
+        }
+      }).toList();
+
       setState(() {
-        files = docs;
+        files = filtered;
         _isLoading = false;
       });
     } catch (e) {
@@ -52,21 +70,21 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
     }
   }
 
+  // ---------------- OPEN FILE ----------------
   Future<void> _openFile(Document document) async {
-    if (document.url == null || document.url!.isEmpty) {
+    if (document.id == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("File URL missing")),
+        const SnackBar(content: Text("Invalid document")),
       );
       return;
     }
 
-    final ext = document.fileName?.split('.').last.toLowerCase() ?? '';
-    debugPrint("🔍 Opening file: ${document.fileName} ($ext)");
+    final fileType = (document.fileType ?? "").toLowerCase();
+    debugPrint("🔍 Opening file: ${document.fileName} ($fileType)");
 
     try {
-      if (ext == 'pdf') {
-        // ✅ Always use backend proxy for PDFs
-        final proxyUrl = "${ApiService.baseUrl}/proxy/${document.id}";
+      if (fileType.contains("pdf")) {
+        final proxyUrl = "${ApiService.baseUrl}/files/${document.id}/proxy";
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -76,12 +94,12 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
             ),
           ),
         );
-      } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].contains(ext)) {
+      } else if (fileType.startsWith("image/")) {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => ImagePreviewPage(
-              url: document.url!,
+              url: document.url ?? "",
               title: document.title ?? 'Image Preview',
             ),
           ),
@@ -97,11 +115,21 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
     }
   }
 
+  // ---------------- DOWNLOAD & OPEN LOCALLY ----------------
   Future<void> _downloadAndOpenFile(Document document) async {
+    if (document.id == null) return;
     try {
       final dir = await getTemporaryDirectory();
-      final filePath = '${dir.path}/${document.fileName}';
-      await dio.download(document.url!, filePath);
+      final filePath = '${dir.path}/${document.fileName ?? "file"}';
+      final url = '${ApiService.baseUrl}/files/${document.id}/download';
+
+      // ✅ Add authentication headers
+      final token = await ApiService.getToken();
+      if (token != null) {
+        dio.options.headers['Authorization'] = 'Bearer $token';
+      }
+
+      await dio.download(url, filePath);
       await OpenFile.open(filePath);
     } catch (e) {
       debugPrint("❌ Download and open error: $e");
@@ -109,7 +137,9 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
     }
   }
 
+  // ---------------- DOWNLOAD ONLY ----------------
   Future<void> _downloadFile(Document document) async {
+    if (document.id == null) return;
     try {
       if (Platform.isAndroid) {
         final status = await Permission.storage.request();
@@ -121,10 +151,15 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         }
       }
 
-      // ✅ Always use backend download endpoint
-      final downloadUrl = '${ApiService.baseUrl}/download/${document.id}';
+      final downloadUrl = '${ApiService.baseUrl}/files/${document.id}/download';
       final dir = await getApplicationDocumentsDirectory();
-      final filePath = '${dir.path}/${document.fileName}';
+      final filePath = '${dir.path}/${document.fileName ?? "file"}';
+
+      // ✅ Add authentication headers
+      final token = await ApiService.getToken();
+      if (token != null) {
+        dio.options.headers['Authorization'] = 'Bearer $token';
+      }
 
       await dio.download(downloadUrl, filePath);
 
@@ -139,6 +174,7 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
     }
   }
 
+  // ---------------- DELETE ----------------
   Future<void> _deleteFile(Document document) async {
     if (document.id == null) return;
 
@@ -155,25 +191,27 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
     }
   }
 
+  // ---------------- THUMBNAIL ----------------
   Widget _buildThumbnail(Document document) {
-    final ext = document.fileName?.split('.').last.toLowerCase() ?? '';
-    if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'].contains(ext)) {
+    final fileType = (document.fileType ?? "").toLowerCase();
+    if (fileType.startsWith("image/")) {
       return Image.network(
-        document.url!,
+        document.url ?? "",
         width: 50,
         height: 50,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) =>
-        const Icon(Icons.broken_image, color: Colors.grey, size: 40),
+            const Icon(Icons.broken_image, color: Colors.grey, size: 40),
       );
-    } else if (ext == 'pdf') {
+    } else if (fileType.contains("pdf")) {
       return const Icon(Icons.picture_as_pdf, color: Colors.red, size: 40);
-    } else if (['doc', 'docx'].contains(ext)) {
+    } else if (fileType.contains("word")) {
       return const Icon(Icons.description, color: Colors.blue, size: 40);
     }
     return const Icon(Icons.insert_drive_file, color: Colors.grey, size: 40);
   }
 
+  // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -187,68 +225,68 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
       ),
       body: _isLoading
           ? Center(
-        child: Lottie.asset(
-          "assets/LoadingClock.json",
-          width: 100,
-          height: 100,
-        ),
-      )
+              child: Lottie.asset(
+                "assets/LoadingClock.json",
+                width: 100,
+                height: 100,
+              ),
+            )
           : files.isEmpty
-          ? const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.folder_open, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text("No documents uploaded yet",
-                style: TextStyle(fontSize: 18, color: Colors.grey)),
-            Text("Upload documents to see them here",
-                style: TextStyle(fontSize: 14, color: Colors.grey)),
-          ],
-        ),
-      )
-          : ListView.builder(
-        itemCount: files.length,
-        itemBuilder: (context, index) {
-          final file = files[index];
-          return Card(
-            margin: const EdgeInsets.symmetric(
-                horizontal: 12, vertical: 8),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-            child: ListTile(
-              leading: _buildThumbnail(file),
-              title: Text(file.title ?? "Untitled"),
-              subtitle: Text(
-                'Uploaded: ${file.date ?? ''}',
-                style: const TextStyle(fontSize: 12),
-              ),
-              trailing: Wrap(
-                spacing: 8,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.remove_red_eye,
-                        color: Colors.blue),
-                    onPressed: () => _openFile(file),
-                    tooltip: "Preview",
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.folder_open, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text("No documents uploaded yet",
+                          style: TextStyle(fontSize: 18, color: Colors.grey)),
+                      Text("Upload documents to see them here",
+                          style: TextStyle(fontSize: 14, color: Colors.grey)),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.download,
-                        color: Colors.green),
-                    onPressed: () => _downloadFile(file),
-                    tooltip: "Download",
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _deleteFile(file),
-                    tooltip: "Delete",
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+                )
+              : ListView.builder(
+                  itemCount: files.length,
+                  itemBuilder: (context, index) {
+                    final file = files[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      child: ListTile(
+                        leading: _buildThumbnail(file),
+                        title: Text(file.title ?? "Untitled"),
+                        subtitle: Text(
+                          'Uploaded: ${file.date ?? ''}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        trailing: Wrap(
+                          spacing: 8,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove_red_eye,
+                                  color: Colors.blue),
+                              onPressed: () => _openFile(file),
+                              tooltip: "Preview",
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.download,
+                                  color: Colors.green),
+                              onPressed: () => _downloadFile(file),
+                              tooltip: "Download",
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _deleteFile(file),
+                              tooltip: "Delete",
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

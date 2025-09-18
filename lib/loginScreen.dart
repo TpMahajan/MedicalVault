@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:hello/dashboard1.dart';
 import 'package:hello/SignUp.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart'; // 👈 Added
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'api_service.dart'; // 👈 Added
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
-  static const String baseUrl =
-      "https://backend-medicalvault.onrender.com/api";
+  static const String baseUrl = "https://backend-medicalvault.onrender.com/api";
 
   Future<Map<String, dynamic>?> loginUser(String email, String password) async {
     try {
@@ -25,7 +26,8 @@ class LoginScreen extends StatelessWidget {
 
         // 👇 Save the session token in SharedPreferences
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('authToken', data['token']); // ✅ Updated key name
+        await prefs.setString(
+            'token', data['token']); // ✅ Use same key as ApiService
         await prefs.setString(
             'userData', jsonEncode(data['user'])); // ✅ Save user data
 
@@ -125,37 +127,27 @@ class LoginScreen extends StatelessWidget {
                 ),
                 child: ElevatedButton(
                   onPressed: () async {
-                    String email = Email.text.trim().toLowerCase();
-                    String password = Password.text.trim();
+                    final result = await ApiService.login(
+                      Email.text.trim(),
+                      Password.text.trim(),
+                    );
+                    if (result != null) {
+                      // ✅ Get user data from SharedPreferences after login
+                      final prefs = await SharedPreferences.getInstance();
+                      final userDataString = prefs.getString('userData');
+                      final userData = userDataString != null
+                          ? jsonDecode(userDataString)
+                          : <String, dynamic>{};
 
-                    if (email.isEmpty || password.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("⚠️ Please enter email & password")),
-                      );
-                      return;
-                    }
-
-                    Map<String, dynamic>? userData =
-                        await loginUser(email, password);
-
-                    if (userData != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("✅ Login successful")),
-                      );
-
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => Dashboard1(
-                            userData: userData, // Pass complete userData
-                          ),
+                          builder: (_) => Dashboard1(userData: userData),
                         ),
                       );
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("❌ Invalid email or password")),
+                        const SnackBar(content: Text("❌ Login failed")),
                       );
                     }
                   },

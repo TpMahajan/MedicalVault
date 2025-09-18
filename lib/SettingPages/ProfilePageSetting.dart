@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
+import '../Document_model.dart';
+import '../api_service.dart';
 
 class ProfileName extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -59,36 +61,44 @@ class _ProfileNameState extends State<ProfileName> {
 
   Future<void> _fetchMedicalRecords() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("authToken");
-      if (token == null) return;
-
       final email = user['email'];
-      final response = await http.get(
-        Uri.parse("https://backend-medicalvault.onrender.com/api/files/grouped/$email"),
-        headers: {"Authorization": "Bearer $token"},
-      );
+      if (email == null) {
+        print("❌ No email found in user data");
+        return;
+      }
 
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
+      print("🔍 Fetching medical records for email: $email");
+
+      // ✅ Use the new API service method
+      final response = await ApiService.fetchGroupedDocsByEmail(email);
+
+      print("📋 API Response: $response");
+
+      if (response != null && response['success'] == true) {
+        final records = response['records'];
+        print("📁 Records structure: $records");
 
         setState(() {
           medicalRecords = {
-            "reports": List<Map<String, dynamic>>.from(body["reports"] ?? []),
-            "prescriptions": List<Map<String, dynamic>>.from(body["prescriptions"] ?? []),
-            "bills": List<Map<String, dynamic>>.from(body["bills"] ?? []),
-            "insurance": List<Map<String, dynamic>>.from(body["insurance"] ?? []),
+            "reports":
+                List<Map<String, dynamic>>.from(records["reports"] ?? []),
+            "prescriptions":
+                List<Map<String, dynamic>>.from(records["prescriptions"] ?? []),
+            "bills": List<Map<String, dynamic>>.from(records["bills"] ?? []),
+            "insurance":
+                List<Map<String, dynamic>>.from(records["insurance"] ?? []),
           };
         });
+
+        print(
+            "✅ Medical records loaded: ${medicalRecords.values.map((list) => list.length).toList()}");
       } else {
-        print("❌ Error fetching records: ${response.body}");
+        print("❌ Error fetching records: $response");
       }
     } catch (e) {
       print("❌ Medical Records fetch error: $e");
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -155,20 +165,24 @@ class _ProfileNameState extends State<ProfileName> {
                   user['nextAppointment']?.toString().split("T")[0] ?? ''),
 
               _sectionTitle("Emergency Contact"),
-              _infoRow(Icons.person,
-                  "Name", user['emergencyContact']?['name'] ?? ''),
+              _infoRow(Icons.person, "Name",
+                  user['emergencyContact']?['name'] ?? ''),
               _infoRow(Icons.people, "Relationship",
                   user['emergencyContact']?['relationship'] ?? ''),
-              _infoRow(Icons.phone,
-                  "Phone", user['emergencyContact']?['phone'] ?? ''),
+              _infoRow(Icons.phone, "Phone",
+                  user['emergencyContact']?['phone'] ?? ''),
 
               _sectionTitle("Medical History"),
-              _listSection(user['medicalHistory'] ?? [], (item) =>
-              "${item['condition']} (${item['status']}) - ${item['diagnosed']}"),
+              _listSection(
+                  user['medicalHistory'] ?? [],
+                  (item) =>
+                      "${item['condition']} (${item['status']}) - ${item['diagnosed']}"),
 
               _sectionTitle("Medications"),
-              _listSection(user['medications'] ?? [], (item) =>
-              "${item['name']} - ${item['dosage']} (${item['frequency']})"),
+              _listSection(
+                  user['medications'] ?? [],
+                  (item) =>
+                      "${item['name']} - ${item['dosage']} (${item['frequency']})"),
 
               _medicalRecordsSection(),
 
@@ -232,16 +246,15 @@ class _ProfileNameState extends State<ProfileName> {
 
   Widget _listSection(List items, String Function(dynamic) format) {
     return items.isEmpty
-        ? const Text("No data available",
-        style: TextStyle(color: Colors.grey))
+        ? const Text("No data available", style: TextStyle(color: Colors.grey))
         : Column(
-      children: items
-          .map<Widget>((item) => Card(
-        color: Colors.white,
-        child: ListTile(title: Text(format(item))),
-      ))
-          .toList(),
-    );
+            children: items
+                .map<Widget>((item) => Card(
+                      color: Colors.white,
+                      child: ListTile(title: Text(format(item))),
+                    ))
+                .toList(),
+          );
   }
 
   Widget _medicalRecordsSection() {
@@ -250,7 +263,8 @@ class _ProfileNameState extends State<ProfileName> {
       children: [
         _sectionTitle("Medical Records"),
         _recordCategoryTile("Reports", medicalRecords["reports"] ?? []),
-        _recordCategoryTile("Prescriptions", medicalRecords["prescriptions"] ?? []),
+        _recordCategoryTile(
+            "Prescriptions", medicalRecords["prescriptions"] ?? []),
         _recordCategoryTile("Bills", medicalRecords["bills"] ?? []),
         _recordCategoryTile("Insurance", medicalRecords["insurance"] ?? []),
       ],
@@ -266,20 +280,33 @@ class _ProfileNameState extends State<ProfileName> {
         children: items.isEmpty
             ? [const ListTile(title: Text("No records available"))]
             : items.map<Widget>((item) {
-          return ListTile(
-            leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
-            title: Text(item["title"] ?? "Untitled"),
-            subtitle: Text("${item["date"] ?? ''} (${item["mimeType"] ?? ''})"),
-            onTap: () {
-              final url = item["url"];
-              if (url != null) {
-                // TODO: open with url_launcher
-              }
-            },
-          );
-        }).toList(),
+                // ✅ Convert to Document object for consistent handling
+                final document = Document.fromApi(item);
+
+                return ListTile(
+                  leading: _getFileIcon(document.fileType ?? ""),
+                  title: Text(document.title ?? "Untitled"),
+                  subtitle: Text(
+                      "${document.date ?? 'Unknown date'} • ${document.fileType ?? 'Unknown type'}"),
+                  // ✅ No onTap - just show metadata as requested
+                );
+              }).toList(),
       ),
     );
+  }
+
+  // ✅ Helper method to get appropriate file icon
+  Widget _getFileIcon(String fileType) {
+    final type = fileType.toLowerCase();
+    if (type.contains("pdf")) {
+      return const Icon(Icons.picture_as_pdf, color: Colors.red);
+    } else if (type.startsWith("image/")) {
+      return const Icon(Icons.image, color: Colors.blue);
+    } else if (type.contains("word")) {
+      return const Icon(Icons.description, color: Colors.blue);
+    } else {
+      return const Icon(Icons.insert_drive_file, color: Colors.grey);
+    }
   }
 }
 
@@ -324,18 +351,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
       String value = "";
       if (field.startsWith("ec")) {
         String ecField = field.substring(2).toLowerCase();
-        value =
-            widget.userData["emergencyContact"]?[ecField]?.toString() ?? "";
+        value = widget.userData["emergencyContact"]?[ecField]?.toString() ?? "";
       } else {
         value = widget.userData[field]?.toString() ?? "";
       }
       _controllers[field] = TextEditingController(text: value);
     }
 
-    medicalHistory =
-    List<Map<String, dynamic>>.from(widget.userData["medicalHistory"] ?? []);
+    medicalHistory = List<Map<String, dynamic>>.from(
+        widget.userData["medicalHistory"] ?? []);
     medications =
-    List<Map<String, dynamic>>.from(widget.userData["medications"] ?? []);
+        List<Map<String, dynamic>>.from(widget.userData["medications"] ?? []);
   }
 
   Future<void> _selectDate(BuildContext context, String fieldKey) async {
@@ -365,12 +391,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: conditionController, decoration: const InputDecoration(labelText: "Condition")),
-            TextField(controller: statusController, decoration: const InputDecoration(labelText: "Status (active/resolved/chronic)")),
+            TextField(
+                controller: conditionController,
+                decoration: const InputDecoration(labelText: "Condition")),
+            TextField(
+                controller: statusController,
+                decoration: const InputDecoration(
+                    labelText: "Status (active/resolved/chronic)")),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () {
               setState(() {
@@ -401,13 +434,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: "Medicine Name")),
-            TextField(controller: dosageController, decoration: const InputDecoration(labelText: "Dosage")),
-            TextField(controller: freqController, decoration: const InputDecoration(labelText: "Frequency")),
+            TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: "Medicine Name")),
+            TextField(
+                controller: dosageController,
+                decoration: const InputDecoration(labelText: "Dosage")),
+            TextField(
+                controller: freqController,
+                decoration: const InputDecoration(labelText: "Frequency")),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () {
               setState(() {
@@ -434,7 +475,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       final response = await http.put(
         Uri.parse("https://backend-medicalvault.onrender.com/api/auth/me"),
-        headers: {"Authorization": "Bearer $token", "Content-Type": "application/json"},
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json"
+        },
         body: jsonEncode(updatedUser),
       );
 
@@ -465,8 +509,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   children: [
                     TextFormField(
                       controller: _controllers[field],
-                      readOnly: field == "dateOfBirth" || field == "lastVisit" || field == "nextAppointment",
-                      onTap: (field == "dateOfBirth" || field == "lastVisit" || field == "nextAppointment")
+                      readOnly: field == "dateOfBirth" ||
+                          field == "lastVisit" ||
+                          field == "nextAppointment",
+                      onTap: (field == "dateOfBirth" ||
+                              field == "lastVisit" ||
+                              field == "nextAppointment")
                           ? () => _selectDate(context, field)
                           : null,
                       decoration: InputDecoration(
@@ -480,7 +528,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
               // Medical History
               // Medical History
-              const Text("Medical History", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text("Medical History",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ...medicalHistory.asMap().entries.map((entry) {
                 final index = entry.key;
                 final mh = entry.value;
@@ -507,12 +556,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                 );
               }),
-              ElevatedButton(onPressed: _addMedicalHistory, child: const Text("Add Medical History")),
+              ElevatedButton(
+                  onPressed: _addMedicalHistory,
+                  child: const Text("Add Medical History")),
 
               const SizedBox(height: 20),
 
               // Medications
-              const Text("Medications", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text("Medications",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ...medications.asMap().entries.map((entry) {
                 final index = entry.key;
                 final med = entry.value;
@@ -539,7 +591,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                 );
               }),
-              ElevatedButton(onPressed: _addMedication, child: const Text("Add Medication")),
+              ElevatedButton(
+                  onPressed: _addMedication,
+                  child: const Text("Add Medication")),
 
               SizedBox(
                 width: double.infinity,
@@ -568,8 +622,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     };
                     await _saveProfile(updatedUser);
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, padding: const EdgeInsets.symmetric(vertical: 16)),
-                  child: const Text("Save Changes", style: TextStyle(color: Colors.white, fontSize: 16)),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(vertical: 16)),
+                  child: const Text("Save Changes",
+                      style: TextStyle(color: Colors.white, fontSize: 16)),
                 ),
               )
             ],
@@ -579,4 +636,3 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 }
-

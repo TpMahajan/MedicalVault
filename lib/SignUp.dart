@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'loginScreen.dart';
 import 'main.dart'; // For WelcomeScreen
+import 'dashboard1.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -34,8 +37,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
     try {
       final response = await http.post(
-        Uri.parse(
-            "https://backend-medicalvault.onrender.com/api/auth/signup"),
+        Uri.parse("https://backend-medicalvault.onrender.com/api/auth/signup"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "name": _nameController.text.trim(),
@@ -46,13 +48,22 @@ class _SignUpPageState extends State<SignUpPage> {
       );
 
       if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+
+        // Save token and user data
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', data['token']);
+        await prefs.setString('userData', jsonEncode(data['user']));
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("✅ Account created successfully")),
         );
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+          MaterialPageRoute(
+            builder: (context) => LoginScreen()),
+
         );
       } else {
         final msg = jsonDecode(response.body)["message"] ?? "Signup failed";

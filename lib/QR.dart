@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'HowQrAcessWorks.dart';
+import 'api_service.dart';
 
 /// 👉 Backend base URL (no trailing slash)
 const String kApiBase = 'https://backend-medicalvault.onrender.com';
@@ -46,49 +47,25 @@ class _QRPageState extends State<QRPage> {
     });
 
     try {
-      final authToken = await _readSessionToken();
-      if (authToken == null || authToken.isEmpty) {
-        throw Exception('Not logged in. Please login to generate QR.');
-      }
+      final token = await ApiService.generateQrToken();
 
-      final uri = Uri.parse('$kApiBase/api/qr/generate');
-      final res = await http.post(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $authToken',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        final body = jsonDecode(res.body) as Map<String, dynamic>;
-        if (!(body['ok'] == true || body['success'] == true)) {
-          throw Exception(body['msg'] ?? 'Failed to generate QR');
-        }
-
-        final qrUrl = (body['qrUrl'] ?? '').toString();
-        final token = (body['token'] ?? '').toString();
-
+      if (token != null) {
         setState(() {
-          _qrData = qrUrl.isNotEmpty ? qrUrl : token;
+          _qrData = token; // Or show QR URL instead if you prefer
           _loading = false;
         });
-        return;
+      } else {
+        throw Exception("Failed to generate QR");
       }
-
-      if (res.statusCode == 401) {
-        throw Exception('Session expired or invalid. Please login again.');
-      }
-
-      throw Exception('HTTP ${res.statusCode}: ${res.body}');
     } catch (e) {
       setState(() {
-        _qrData = 'DoctorAccess:${_uuid.v4()}';
+        _qrData = "DoctorAccess:${_uuid.v4()}"; // fallback
         _lastError = e.toString();
         _loading = false;
       });
     }
   }
+
 
   Future<void> _shareQR() async {
     try {

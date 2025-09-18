@@ -1,136 +1,209 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'Document_model.dart';
-import 'package:url_launcher/url_launcher.dart'; // ✅ add for preview
 
 class ApiService {
-  // 🔹 Render Hosted Backend URL
-  static const String baseUrl =
-      "https://backend-medicalvault.onrender.com/api/files";
+  static const String baseUrl = "https://backend-medicalvault.onrender.com/api";
+  static const String authUrl = "$baseUrl/auth";
+  static const String filesUrl = "$baseUrl/files";
+  static const String qrUrl = "$baseUrl/qr";
 
-  // ================= Preview Document =================
-  /// Ab preview ke liye Cloudinary ka direct URL use hoga.
-  /// Agar file Cloudinary pe `raw/upload/` ke saath hai (octet-stream),
-  /// to Google Docs Viewer ka fallback use hoga.
-  static Future<String?> previewDocument(String fileUrl) async {
+  // ---------------- TOKEN ----------------
+  static Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('authToken');
+  }
+
+  // ✅ Public method to get token for Dio requests
+  static Future<String?> getToken() async {
+    return _getToken();
+  }
+
+  static Future<Map<String, String>> _authHeaders() async {
+    final token = await _getToken();
+    return {
+      HttpHeaders.authorizationHeader: 'Bearer ${token ?? ''}',
+    };
+  }
+
+  // ---------------- LOGIN ----------------
+  static Future<Map<String, dynamic>?> login(
+      String email, String password) async {
     try {
-      if (!fileUrl.startsWith("http")) {
-        throw "Invalid file URL";
-      }
+      final res = await http.post(
+        Uri.parse("$authUrl/login"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": email, "password": password}),
+      );
 
-      String previewUrl = fileUrl;
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final token = data['token'];
+        final user = data['user'];
 
-      // ✅ Special handling for PDFs with wrong mimetype (octet-stream → raw/upload/)
-      if (fileUrl.toLowerCase().endsWith(".pdf") && fileUrl.contains("/raw/")) {
-        previewUrl =
-        "https://docs.google.com/viewer?url=${Uri.encodeComponent(fileUrl)}&embedded=true";
-        debugPrint("🔄 Using Google Docs fallback for PDF: $previewUrl");
+        if (token != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString("authToken", token);
+          await prefs.setString("userId", user?['id']?.toString() ?? "");
+          await prefs.setString("email", user?['email']?.toString() ?? "");
+          await prefs.setString("name", user?['name']?.toString() ?? "Patient");
+          // ✅ Also store userData for dashboard compatibility
+          await prefs.setString("userData", jsonEncode(user));
+        }
+
+        return data;
       } else {
-        debugPrint("📂 Direct preview: $previewUrl");
-      }
-
-      // ✅ Try to launch
-      final uri = Uri.parse(previewUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        return previewUrl;
-      } else {
-        debugPrint("⚠️ Could not launch $previewUrl");
+        print("Login failed: ${res.body}");
         return null;
       }
     } catch (e) {
-      debugPrint("❌ Error previewing document: $e");
+      print("Login error: $e");
       return null;
     }
   }
 
-  // ================= Delete Document =================
-  static Future<bool> deleteDocument(String docId) async {
+  // ---------------- PROFILE ----------------
+  static Future<Map<String, dynamic>?> me() async {
     try {
-      final url = Uri.parse("$baseUrl/$docId");
-      final response = await http.delete(url);
-
-      if (response.statusCode == 200) {
-        debugPrint("✅ Document deleted: $docId");
-        return true;
-      } else {
-        debugPrint("❌ Delete failed: ${response.statusCode} ${response.body}");
-        return false;
+      final headers = await _authHeaders();
+      final res = await http.get(Uri.parse("$authUrl/me"), headers: headers);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['data']['user'];
       }
     } catch (e) {
-      debugPrint("⚠️ Error deleting document: $e");
+      print("Me error: $e");
+    }
+    return null;
+  }
+
+  // ---------------- UPLOAD ----------------
+  static Future<Document?> uploadDocument({
+    required File file,
+    required String title,
+    required String category,
+    String? notes,
+    String? date,
+  }) async {
+    try {
+      // ✅ Force category to match backend accepted values
+      final validCategories = ["Report", "Prescription", "Bill", "Insurance"];
+      final normalizedCategory =
+          validCategories.contains(category) ? category : "Report"; // fallback
+
+      final uri = Uri.parse("$filesUrl/upload");
+      final request = http.MultipartRequest("POST", uri);
+
+      final token = await _getToken();
+      if (token != null) {
+        request.headers[HttpHeaders.authorizationHeader] = "Bearer $token";
+      }
+
+      request.fields["title"] = title;
+      request.fields["category"] = normalizedCategory;
+      if (notes != null) request.fields["notes"] = notes;
+      if (date != null) request.fields["date"] = date;
+
+      final stream = http.ByteStream(file.openRead());
+      final length = await file.length();
+      final multipartFile = http.MultipartFile(
+        "file",
+        stream,
+        length,
+        filename: file.path.split("/").last,
+      );
+      request.files.add(multipartFile);
+
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(body);
+        return Document.fromApi(json['document']);
+      } else {
+        print("Upload failed: $body");
+        return null;
+      }
+    } catch (e) {
+      print("Upload error: $e");
+      return null;
+    }
+  }
+
+  // ---------------- FETCH FILES ----------------
+  static Future<List<Document>> fetchMyDocs(String userId) async {
+    try {
+      final headers = await _authHeaders();
+      final res =
+          await http.get(Uri.parse("$filesUrl/user/$userId"), headers: headers);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final docs = data['documents'] as List;
+        return docs.map((j) => Document.fromApi(j)).toList();
+      }
+    } catch (e) {
+      print("Fetch error: $e");
+    }
+    return [];
+  }
+
+  static Future<Map<String, dynamic>?> fetchGroupedDocs(String userId) async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.get(Uri.parse("$filesUrl/user/$userId/grouped"),
+          headers: headers);
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body);
+      }
+    } catch (e) {
+      print("Grouped fetch error: $e");
+    }
+    return null;
+  }
+
+  // ---------------- FETCH GROUPED DOCS BY EMAIL (for ProfilePageSettings) ----------------
+  static Future<Map<String, dynamic>?> fetchGroupedDocsByEmail(
+      String email) async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.get(Uri.parse("$filesUrl/grouped/$email"),
+          headers: headers);
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body);
+      }
+    } catch (e) {
+      print("Grouped fetch by email error: $e");
+    }
+    return null;
+  }
+
+  // ---------------- DELETE ----------------
+  static Future<bool> deleteDocument(String docId) async {
+    try {
+      final headers = await _authHeaders();
+      final res =
+          await http.delete(Uri.parse("$filesUrl/$docId"), headers: headers);
+      return res.statusCode == 200;
+    } catch (e) {
       return false;
     }
   }
 
-  // ================= Fetch Documents =================
-  static Future<List<Document>> fetchDocuments({
-    String? category,
-    required String userEmail,
-  }) async {
+  // ---------------- QR ----------------
+  static Future<String?> generateQrToken() async {
     try {
-      final uri = Uri.parse(
-          "$baseUrl?category=${category ?? ''}&email=$userEmail");
-
-      final response = await http.get(uri);
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data is Map && data.containsKey("documents")) {
-          final List docs = data["documents"];
-          return docs.map((e) => Document.fromApi(e)).toList();
-        }
-        return [];
-      } else {
-        debugPrint("❌ Fetch failed: ${response.statusCode} ${response.body}");
-        return [];
+      final headers = await _authHeaders();
+      final res =
+          await http.post(Uri.parse("$qrUrl/generate"), headers: headers);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['qrUrl'] ?? data['token'];
       }
     } catch (e) {
-      debugPrint("⚠️ Error fetching documents: $e");
-      return [];
+      print("QR error: $e");
     }
-  }
-
-  // ================= Upload Document =================
-  static Future<Document?> uploadDocument({
-    required File file,
-    required String userId,
-    required String userEmail,
-    required String title,
-    required String category,
-    required String date,
-    String? notes,
-  }) async {
-    try {
-      final uri = Uri.parse("$baseUrl/upload");
-      final request = http.MultipartRequest("POST", uri);
-
-      request.fields["userId"] = userId;
-      request.fields["email"] = userEmail;
-      request.fields["title"] = title;
-      request.fields["category"] = category;
-      request.fields["date"] = date;
-      if (notes != null) request.fields["notes"] = notes;
-
-      request.files.add(await http.MultipartFile.fromPath("file", file.path));
-
-      final response = await request.send();
-      final respStr = await response.stream.bytesToString();
-      final jsonResponse = json.decode(respStr);
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint("✅ Upload successful");
-        final docData = jsonResponse['file'] ?? jsonResponse;
-        return Document.fromApi(docData);
-      } else {
-        debugPrint("❌ Upload failed: ${response.statusCode} $respStr");
-        return null;
-      }
-    } catch (e) {
-      debugPrint("⚠️ Error uploading document: $e");
-      return null;
-    }
+    return null;
   }
 }
