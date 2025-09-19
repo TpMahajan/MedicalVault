@@ -80,31 +80,41 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
     }
 
     final fileType = (document.fileType ?? "").toLowerCase();
-    debugPrint("🔍 Opening file: ${document.fileName} ($fileType)");
+    final fileName = document.fileName ?? "";
+    debugPrint("🔍 Opening file: $fileName ($fileType)");
 
     try {
       if (fileType.contains("pdf")) {
+        // ✅ Use backend proxy for PDFs
         final proxyUrl = "${ApiService.baseUrl}/files/${document.id}/proxy";
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => PdfPreviewPage(
               url: proxyUrl,
-              title: document.title ?? document.fileName ?? 'PDF Preview',
+              title: document.title ?? 'PDF Preview',
             ),
           ),
         );
-      } else if (fileType.startsWith("image/")) {
+      } else if (fileType.startsWith("image/") ||
+          fileName.toLowerCase().endsWith(".jpg") ||
+          fileName.toLowerCase().endsWith(".jpeg") ||
+          fileName.toLowerCase().endsWith(".png")) {
+        // ✅ Even if backend sends "application/octet-stream", use Cloudinary URL
+        if (document.url == null || document.url!.isEmpty) {
+          throw Exception("No image URL available");
+        }
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => ImagePreviewPage(
-              url: document.url ?? "",
+              url: document.url!,
               title: document.title ?? 'Image Preview',
             ),
           ),
         );
       } else {
+        // ✅ Fallback: download & open locally
         await _downloadAndOpenFile(document);
       }
     } catch (e) {
@@ -123,13 +133,15 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
       final filePath = '${dir.path}/${document.fileName ?? "file"}';
       final url = '${ApiService.baseUrl}/files/${document.id}/download';
 
-      // ✅ Add authentication headers
+      // ✅ Add authentication headers for this specific request
       final token = await ApiService.getToken();
-      if (token != null) {
-        dio.options.headers['Authorization'] = 'Bearer $token';
-      }
+      final options = Options(
+        headers: token != null ? {'Authorization': 'Bearer $token'} : {},
+        receiveTimeout: const Duration(seconds: 30),
+        sendTimeout: const Duration(seconds: 30),
+      );
 
-      await dio.download(url, filePath);
+      await dio.download(url, filePath, options: options);
       await OpenFile.open(filePath);
     } catch (e) {
       debugPrint("❌ Download and open error: $e");
@@ -151,17 +163,36 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         }
       }
 
-      final downloadUrl = '${ApiService.baseUrl}/files/${document.id}/download';
       final dir = await getApplicationDocumentsDirectory();
       final filePath = '${dir.path}/${document.fileName ?? "file"}';
 
-      // ✅ Add authentication headers
-      final token = await ApiService.getToken();
-      if (token != null) {
-        dio.options.headers['Authorization'] = 'Bearer $token';
-      }
+      final fileType = (document.fileType ?? "").toLowerCase();
+      final fileName = (document.fileName ?? "").toLowerCase();
 
-      await dio.download(downloadUrl, filePath);
+      // ✅ PDFs → backend download (with auth)
+      if (fileType.contains("pdf") || fileName.endsWith(".pdf")) {
+        final downloadUrl =
+            '${ApiService.baseUrl}/files/${document.id}/download';
+
+        final token = await ApiService.getToken();
+        final options = Options(
+          headers: token != null ? {'Authorization': 'Bearer $token'} : {},
+          receiveTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 30),
+        );
+
+        await dio.download(downloadUrl, filePath, options: options);
+      } else {
+        // ✅ Images & others → download directly from Cloudinary URL
+        if (document.url == null || document.url!.isEmpty) {
+          throw Exception("File URL missing");
+        }
+        final options = Options(
+          receiveTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 30),
+        );
+        await dio.download(document.url!, filePath, options: options);
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("✅ Downloaded to $filePath")),
@@ -176,17 +207,29 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
 
   // ---------------- DELETE ----------------
   Future<void> _deleteFile(Document document) async {
-    if (document.id == null) return;
-
-    final success = await ApiService.deleteDocument(document.id!);
-    if (success) {
-      setState(() => files.remove(document));
+    if (document.id == null || document.id!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Document deleted")),
+        const SnackBar(content: Text("Invalid document id")),
       );
-    } else {
+      return;
+    }
+
+    try {
+      debugPrint("🗑 Deleting file with id=${document.id}");
+      final success = await ApiService.deleteDocument(document.id!);
+
+      if (success) {
+        setState(() => files.remove(document));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ Document deleted")),
+        );
+      } else {
+        throw Exception("Server rejected delete for id=${document.id}");
+      }
+    } catch (e) {
+      debugPrint("❌ Delete error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("❌ Failed to delete document")),
+        SnackBar(content: Text("❌ Failed to delete document: $e")),
       );
     }
   }
@@ -196,7 +239,7 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
     final fileType = (document.fileType ?? "").toLowerCase();
     if (fileType.startsWith("image/")) {
       return Image.network(
-        document.url ?? "",
+        "${ApiService.baseUrl}/files/${document.id}/proxy",
         width: 50,
         height: 50,
         fit: BoxFit.cover,

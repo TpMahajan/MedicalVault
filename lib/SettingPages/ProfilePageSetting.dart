@@ -78,25 +78,42 @@ class _ProfileNameState extends State<ProfileName> {
         final records = response['records'];
         print("📁 Records structure: $records");
 
-        setState(() {
-          medicalRecords = {
-            "reports":
-                List<Map<String, dynamic>>.from(records["reports"] ?? []),
-            "prescriptions":
-                List<Map<String, dynamic>>.from(records["prescriptions"] ?? []),
-            "bills": List<Map<String, dynamic>>.from(records["bills"] ?? []),
-            "insurance":
-                List<Map<String, dynamic>>.from(records["insurance"] ?? []),
-          };
-        });
+        if (records != null) {
+          setState(() {
+            medicalRecords = {
+              "reports":
+                  List<Map<String, dynamic>>.from(records["reports"] ?? []),
+              "prescriptions": List<Map<String, dynamic>>.from(
+                  records["prescriptions"] ?? []),
+              "bills": List<Map<String, dynamic>>.from(records["bills"] ?? []),
+              "insurance":
+                  List<Map<String, dynamic>>.from(records["insurance"] ?? []),
+            };
+          });
 
-        print(
-            "✅ Medical records loaded: ${medicalRecords.values.map((list) => list.length).toList()}");
+          print(
+              "✅ Medical records loaded: Reports: ${medicalRecords["reports"]?.length ?? 0}, "
+              "Prescriptions: ${medicalRecords["prescriptions"]?.length ?? 0}, "
+              "Bills: ${medicalRecords["bills"]?.length ?? 0}, "
+              "Insurance: ${medicalRecords["insurance"]?.length ?? 0}");
+        } else {
+          print("❌ Records is null in response");
+        }
       } else {
-        print("❌ Error fetching records: $response");
+        print("❌ Error fetching records - Response: $response");
+        print("❌ Success flag: ${response?['success']}");
+        print("❌ Error message: ${response?['msg']}");
       }
     } catch (e) {
       print("❌ Medical Records fetch error: $e");
+      setState(() {
+        medicalRecords = {
+          "reports": [],
+          "prescriptions": [],
+          "bills": [],
+          "insurance": [],
+        };
+      });
     }
   }
 

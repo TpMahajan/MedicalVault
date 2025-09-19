@@ -72,6 +72,8 @@ class ApiService {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         return data['data']['user'];
+      } else {
+        print("Profile fetch failed: ${res.body}");
       }
     } catch (e) {
       print("Me error: $e");
@@ -91,7 +93,7 @@ class ApiService {
       // ✅ Force category to match backend accepted values
       final validCategories = ["Report", "Prescription", "Bill", "Insurance"];
       final normalizedCategory =
-          validCategories.contains(category) ? category : "Report"; // fallback
+          validCategories.contains(category) ? category : "Report";
 
       final uri = Uri.parse("$filesUrl/upload");
       final request = http.MultipartRequest("POST", uri);
@@ -142,6 +144,8 @@ class ApiService {
         final data = jsonDecode(res.body);
         final docs = data['documents'] as List;
         return docs.map((j) => Document.fromApi(j)).toList();
+      } else {
+        print("Fetch docs failed: ${res.body}");
       }
     } catch (e) {
       print("Fetch error: $e");
@@ -152,10 +156,14 @@ class ApiService {
   static Future<Map<String, dynamic>?> fetchGroupedDocs(String userId) async {
     try {
       final headers = await _authHeaders();
-      final res = await http.get(Uri.parse("$filesUrl/user/$userId/grouped"),
-          headers: headers);
+      final res = await http.get(
+        Uri.parse("$filesUrl/user/$userId/grouped"),
+        headers: headers,
+      );
       if (res.statusCode == 200) {
         return jsonDecode(res.body);
+      } else {
+        print("Grouped fetch failed: ${res.body}");
       }
     } catch (e) {
       print("Grouped fetch error: $e");
@@ -172,6 +180,8 @@ class ApiService {
           headers: headers);
       if (res.statusCode == 200) {
         return jsonDecode(res.body);
+      } else {
+        print("Grouped fetch by email failed: ${res.body}");
       }
     } catch (e) {
       print("Grouped fetch by email error: $e");
@@ -185,8 +195,15 @@ class ApiService {
       final headers = await _authHeaders();
       final res =
           await http.delete(Uri.parse("$filesUrl/$docId"), headers: headers);
-      return res.statusCode == 200;
+
+      if (res.statusCode == 200) {
+        return true;
+      } else {
+        print("Delete failed: ${res.body}");
+        return false;
+      }
     } catch (e) {
+      print("Delete error: $e");
       return false;
     }
   }
@@ -200,6 +217,8 @@ class ApiService {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         return data['qrUrl'] ?? data['token'];
+      } else {
+        print("QR generation failed: ${res.body}");
       }
     } catch (e) {
       print("QR error: $e");

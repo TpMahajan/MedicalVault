@@ -19,7 +19,6 @@ class DocumentDetailPage extends StatelessWidget {
 
   const DocumentDetailPage({super.key, required this.document});
 
-  /// 🔹 Preview = open file in-app or external app
   Future<void> _previewFile(BuildContext context) async {
     if (document.url == null || document.url!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -30,9 +29,7 @@ class DocumentDetailPage extends StatelessWidget {
 
     try {
       final ext = document.fileName?.split('.').last.toLowerCase() ?? '';
-
       if (ext == 'pdf') {
-        // ✅ Always go through proxy for PDF preview
         final proxyUrl = "${ApiService.baseUrl}/files/${document.id}/proxy";
         Navigator.push(
           context,
@@ -54,15 +51,7 @@ class DocumentDetailPage extends StatelessWidget {
           ),
         );
       } else {
-        // Other types open with external app
-        final uri = Uri.parse(document.url!);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Could not preview file")),
-          );
-        }
+        await _downloadAndOpenFile(context);
       }
     } catch (e) {
       debugPrint("❌ Error previewing: $e");
@@ -72,7 +61,25 @@ class DocumentDetailPage extends StatelessWidget {
     }
   }
 
-  /// 🔹 Download Cloudinary file to device
+  Future<void> _downloadAndOpenFile(BuildContext context) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final filePath = '${dir.path}/${document.fileName}';
+      final dio = Dio();
+
+      final token = await ApiService.getToken();
+      if (token != null) dio.options.headers['Authorization'] = 'Bearer $token';
+
+      await dio.download("${ApiService.baseUrl}/files/${document.id}/download", filePath);
+      await OpenFile.open(filePath);
+    } catch (e) {
+      debugPrint("❌ Download+Open error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Download failed: $e")),
+      );
+    }
+  }
+
   Future<void> _downloadFile(BuildContext context) async {
     try {
       if (document.id == null) {
@@ -92,27 +99,24 @@ class DocumentDetailPage extends StatelessWidget {
         }
       }
 
-      // ✅ Always use backend download endpoint
-      final downloadUrl = '${ApiService.baseUrl}/files/${document.id}/download';
-      final dir = await getApplicationDocumentsDirectory();
+      final dir = Platform.isAndroid
+          ? Directory("/storage/emulated/0/Download")
+          : await getApplicationDocumentsDirectory();
       final filePath = '${dir.path}/${document.fileName}';
 
-      Dio dio = Dio();
-      // ✅ Add authentication headers
+      final dio = Dio();
       final token = await ApiService.getToken();
-      if (token != null) {
-        dio.options.headers['Authorization'] = 'Bearer $token';
-      }
+      if (token != null) dio.options.headers['Authorization'] = 'Bearer $token';
 
-      await dio.download(downloadUrl, filePath);
+      await dio.download("${ApiService.baseUrl}/files/${document.id}/download", filePath);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("✅ File downloaded: $filePath")),
+        SnackBar(content: Text("✅ Saved to $filePath")),
       );
     } catch (e) {
       debugPrint("❌ Download error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Failed: $e")),
+        SnackBar(content: Text("Download failed: $e")),
       );
     }
   }
@@ -137,16 +141,14 @@ class DocumentDetailPage extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: () => _previewFile(context),
                   icon: const Icon(Icons.remove_red_eye, color: Colors.blue),
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.white),
                   label: const Text("Preview"),
                 ),
                 const SizedBox(width: 10),
                 ElevatedButton.icon(
                   onPressed: () => _downloadFile(context),
                   icon: const Icon(Icons.download, color: Colors.blue),
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.white),
                   label: const Text("Download"),
                 ),
               ],
@@ -187,7 +189,7 @@ class _MyVaultState extends State<MyVault> {
   ];
   String _selectedCategory = "All";
 
-  String _selectedSort = "Today"; // ✅ Default
+  String _selectedSort = "Today";
   final List<String> _sortOptions = [
     "Today",
     "Last 2 days",
@@ -227,9 +229,7 @@ class _MyVaultState extends State<MyVault> {
       debugPrint("❌ Error loading documents: $e");
     }
 
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+    if (mounted) setState(() => _isLoading = false);
   }
 
   List<Document> _filterAndSortDocuments() {
@@ -239,10 +239,10 @@ class _MyVaultState extends State<MyVault> {
     var docs = _selectedCategory == "All"
         ? MyVault._allDocuments
         : MyVault._allDocuments
-            .where((doc) =>
-                (doc.category ?? '').toLowerCase() ==
-                _selectedCategory.toLowerCase())
-            .toList();
+        .where((doc) =>
+    (doc.category ?? '').toLowerCase() ==
+        _selectedCategory.toLowerCase())
+        .toList();
 
     docs = docs
         .where((doc) => (doc.title ?? '').toLowerCase().contains(query))
@@ -252,9 +252,7 @@ class _MyVaultState extends State<MyVault> {
       if (doc.date == null) return false;
       final docDate = DateTime.tryParse(doc.date!);
       if (docDate == null) return false;
-
       final difference = now.difference(docDate).inDays;
-
       switch (_selectedSort) {
         case "Today":
           return difference == 0;
@@ -280,11 +278,9 @@ class _MyVaultState extends State<MyVault> {
 
   Future<void> _openFile(Document document) async {
     if (document.url == null || document.url!.isEmpty) return;
-
     final ext = document.fileName?.split('.').last.toLowerCase() ?? '';
     try {
       if (ext == 'pdf') {
-        // ✅ Always proxy PDFs
         final proxyUrl = "${ApiService.baseUrl}/files/${document.id}/proxy";
         Navigator.push(
           context,
@@ -322,18 +318,16 @@ class _MyVaultState extends State<MyVault> {
         if (!status.isGranted) return;
       }
 
-      final downloadUrl = '${ApiService.baseUrl}/files/${document.id}/download';
-      final dir = await getApplicationDocumentsDirectory();
+      final dir = Platform.isAndroid
+          ? Directory("/storage/emulated/0/Download")
+          : await getApplicationDocumentsDirectory();
       final filePath = '${dir.path}/${document.fileName}';
 
-      Dio dio = Dio();
-      // ✅ Add authentication headers
+      final dio = Dio();
       final token = await ApiService.getToken();
-      if (token != null) {
-        dio.options.headers['Authorization'] = 'Bearer $token';
-      }
+      if (token != null) dio.options.headers['Authorization'] = 'Bearer $token';
 
-      await dio.download(downloadUrl, filePath);
+      await dio.download("${ApiService.baseUrl}/files/${document.id}/download", filePath);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("✅ File downloaded: $filePath")),
@@ -348,17 +342,33 @@ class _MyVaultState extends State<MyVault> {
       final dir = await getTemporaryDirectory();
       final filePath = '${dir.path}/${document.fileName}';
       final dio = Dio();
-
-      // ✅ Add authentication headers
       final token = await ApiService.getToken();
-      if (token != null) {
-        dio.options.headers['Authorization'] = 'Bearer $token';
-      }
+      if (token != null) dio.options.headers['Authorization'] = 'Bearer $token';
 
-      await dio.download(document.url!, filePath);
+      await dio.download("${ApiService.baseUrl}/files/${document.id}/download", filePath);
       await OpenFile.open(filePath);
     } catch (e) {
       debugPrint("❌ Download and open error: $e");
+    }
+  }
+
+  Future<void> _deleteFile(Document document) async {
+    try {
+      final success = await ApiService.deleteDocument(document.id!);
+      if (success) {
+        setState(() {
+          MyVault.removeDocument(document.id!);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ File deleted")),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("❌ Delete failed")),
+        );
+      }
+    } catch (e) {
+      debugPrint("❌ Delete error: $e");
     }
   }
 
@@ -425,9 +435,9 @@ class _MyVaultState extends State<MyVault> {
                     value: _selectedSort,
                     items: _sortOptions
                         .map((option) => DropdownMenuItem(
-                              value: option,
-                              child: Text(option),
-                            ))
+                      value: option,
+                      child: Text(option),
+                    ))
                         .toList(),
                     onChanged: (val) {
                       if (val != null) {
@@ -444,70 +454,58 @@ class _MyVaultState extends State<MyVault> {
           Expanded(
             child: _isLoading
                 ? Center(
-                    child: Lottie.asset(
-                      'assets/LoadingClock.json',
-                      width: 100,
-                      height: 100,
-                    ),
-                  )
+              child: Lottie.asset(
+                'assets/LoadingClock.json',
+                width: 100,
+                height: 100,
+              ),
+            )
                 : docs.isEmpty
-                    ? const Center(child: Text("No documents found"))
-                    : ListView.builder(
-                        itemCount: docs.length,
-                        itemBuilder: (context, index) {
-                          final doc = docs[index];
-                          return Card(
-                            margin: const EdgeInsets.symmetric(
-                                vertical: 6, horizontal: 8),
-                            child: ListTile(
-                              leading: const Icon(Icons.insert_drive_file,
-                                  color: Colors.blue),
-                              title: Text(doc.title ?? "Untitled"),
-                              subtitle: Text("${doc.category} • ${doc.date}"),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.remove_red_eye,
-                                        color: Colors.green),
-                                    onPressed: () => _openFile(doc),
-                                    tooltip: "Preview",
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.download,
-                                        color: Colors.blue),
-                                    onPressed: () => _downloadFile(doc),
-                                    tooltip: "Download",
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete,
-                                        color: Colors.red),
-                                    onPressed: () async {
-                                      final success =
-                                          await ApiService.deleteDocument(
-                                              doc.id!);
-                                      if (success) {
-                                        setState(() {
-                                          MyVault.removeDocument(doc.id!);
-                                        });
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(const SnackBar(
-                                                content: Text("File deleted")));
-                                      }
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                ? const Center(child: Text("No documents found"))
+                : ListView.builder(
+              itemCount: docs.length,
+              itemBuilder: (context, index) {
+                final doc = docs[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(
+                      vertical: 6, horizontal: 8),
+                  child: ListTile(
+                    leading: const Icon(Icons.insert_drive_file,
+                        color: Colors.blue),
+                    title: Text(doc.title ?? "Untitled"),
+                    subtitle: Text("${doc.category} • ${doc.date}"),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove_red_eye,
+                              color: Colors.green),
+                          onPressed: () => _openFile(doc),
+                          tooltip: "Preview",
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.download,
+                              color: Colors.blue),
+                          onPressed: () => _downloadFile(doc),
+                          tooltip: "Download",
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete,
+                              color: Colors.red),
+                          onPressed: () => _deleteFile(doc),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
 
           // 📤 Upload Button
           Padding(
             padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Container(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
