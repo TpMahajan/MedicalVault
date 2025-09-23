@@ -8,10 +8,10 @@ class Document {
   final String? date;
   final String? fileName;
   final String? fileType;
-  final String? url; // ✅ Cloudinary or API URL
+  final String? url; // ✅ S3 signed URL from backend
   final String? category; // ✅ Logical grouping
   final String? type; // ✅ Backend sometimes uses this
-  final String? publicId; // ✅ For delete from Cloudinary
+  final String? s3Key; // ✅ S3 key for backend operations
 
   Document({
     this.id,
@@ -26,13 +26,13 @@ class Document {
     this.url,
     this.category,
     this.type,
-    this.publicId,
+    this.s3Key,
   });
 
   /// ✅ Factory constructor for API response
   factory Document.fromApi(Map<String, dynamic> json) {
-    // ✅ Improved URL resolution - prioritize 'url' field, fallback to 'cloudinaryUrl'
-    final resolvedUrl = json['url'] ?? json['cloudinaryUrl'];
+    // ✅ URL comes from backend as signed S3 URL
+    final resolvedUrl = json['url'];
 
     // ✅ Normalize category/type to lowercase for consistent comparison
     final rawType = (json['type'] ?? json['category'] ?? "")
@@ -72,7 +72,7 @@ class Document {
       url: resolvedUrl,
       category: normalized,
       type: normalized,
-      publicId: json['publicId'] ?? json['cloudinaryPublicId'],
+      s3Key: json['s3Key'],
     );
   }
 
@@ -90,7 +90,7 @@ class Document {
       "url": url,
       "category": category,
       "type": type,
-      "publicId": publicId,
+      "s3Key": s3Key,
     };
   }
 

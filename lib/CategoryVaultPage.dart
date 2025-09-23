@@ -5,7 +5,7 @@ import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:dio/dio.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:permission_handler/permission_handler.dart';
+// import 'package:permission_handler/permission_handler.dart';
 
 import 'Document_model.dart';
 import 'api_service.dart';
@@ -26,13 +26,65 @@ class CategoryVaultPage extends StatefulWidget {
 
 class _CategoryVaultPageState extends State<CategoryVaultPage> {
   List<Document> files = [];
+  List<Document> filteredFiles = [];
   bool _isLoading = true;
   final Dio dio = Dio();
+
+  // Time filter options
+  String selectedTimeFilter = 'All';
+  final List<String> timeFilterOptions = [
+    'All',
+    '1 Month',
+    '3 Months',
+    '6 Months',
+    '12 Months'
+  ];
 
   @override
   void initState() {
     super.initState();
     _loadFiles();
+  }
+
+  // Helper method to apply date filter
+  List<Document> _applyDateFilter(List<Document> docs) {
+    if (selectedTimeFilter == 'All') {
+      return docs;
+    }
+
+    final now = DateTime.now();
+    int dayLimit;
+
+    switch (selectedTimeFilter) {
+      case '1 Month':
+        dayLimit = 30;
+        break;
+      case '3 Months':
+        dayLimit = 90;
+        break;
+      case '6 Months':
+        dayLimit = 180;
+        break;
+      case '12 Months':
+        dayLimit = 365;
+        break;
+      default:
+        return docs;
+    }
+
+    return docs.where((doc) {
+      if (doc.date == null || doc.date!.isEmpty) {
+        return false; // Exclude documents without date
+      }
+
+      final docDate = DateTime.tryParse(doc.date!);
+      if (docDate == null) {
+        return false; // Exclude documents with invalid date
+      }
+
+      final daysDifference = now.difference(docDate).inDays;
+      return daysDifference <= dayLimit;
+    }).toList();
   }
 
   Future<void> _loadFiles() async {
@@ -41,7 +93,7 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
       final docs = await ApiService.fetchMyDocs(widget.userId);
 
       // ✅ Filter by normalizedType from model
-      final filtered = docs.where((d) {
+      final categoryFiltered = docs.where((d) {
         switch (widget.category.toLowerCase()) {
           case "reports":
           case "report":
@@ -60,13 +112,27 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         }
       }).toList();
 
+      // Apply date filter
+      final dateFiltered = _applyDateFilter(categoryFiltered);
+
       setState(() {
-        files = filtered;
+        files = categoryFiltered; // Store all category files
+        filteredFiles = dateFiltered; // Store filtered files for display
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
       debugPrint("⚠️ Error loading files: $e");
+    }
+  }
+
+  // Handle filter change
+  void _onFilterChanged(String? newFilter) {
+    if (newFilter != null && newFilter != selectedTimeFilter) {
+      setState(() {
+        selectedTimeFilter = newFilter;
+        filteredFiles = _applyDateFilter(files);
+      });
     }
   }
 
@@ -85,30 +151,19 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
 
     try {
       if (fileType.contains("pdf")) {
-        // ✅ Use backend proxy for PDFs
-        final proxyUrl = "${ApiService.baseUrl}/files/${document.id}/proxy";
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PdfPreviewPage(
-              url: proxyUrl,
-              title: document.title ?? 'PDF Preview',
-            ),
-          ),
-        );
+        // ✅ Always download and open PDFs externally
+        await _downloadAndOpenFile(document);
       } else if (fileType.startsWith("image/") ||
           fileName.toLowerCase().endsWith(".jpg") ||
           fileName.toLowerCase().endsWith(".jpeg") ||
           fileName.toLowerCase().endsWith(".png")) {
-        // ✅ Even if backend sends "application/octet-stream", use Cloudinary URL
-        if (document.url == null || document.url!.isEmpty) {
-          throw Exception("No image URL available");
-        }
+        // ✅ Use backend preview endpoint for images
+        final previewUrl = await _getPreviewUrl(document.id!);
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => ImagePreviewPage(
-              url: document.url!,
+              url: previewUrl,
               title: document.title ?? 'Image Preview',
             ),
           ),
@@ -122,6 +177,33 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Could not open file: $e")),
       );
+    }
+  }
+
+  Future<String> _getPreviewUrl(String documentId) async {
+    try {
+      final token = await ApiService.getToken();
+      if (token == null) {
+        throw Exception('No authentication token available');
+      }
+
+      final dio = Dio();
+      final response = await dio.get(
+        "${ApiService.baseUrl}/files/$documentId/preview",
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['signedUrl'];
+      } else {
+        throw Exception(
+            'Failed to get preview URL: ${response.data['message'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      debugPrint("❌ Error getting preview URL: $e");
+      throw Exception('Failed to get preview URL: $e');
     }
   }
 
@@ -139,63 +221,56 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
         headers: token != null ? {'Authorization': 'Bearer $token'} : {},
         receiveTimeout: const Duration(seconds: 30),
         sendTimeout: const Duration(seconds: 30),
+        validateStatus: (status) =>
+            status! < 500, // Allow 4xx errors to be handled
       );
 
       await dio.download(url, filePath, options: options);
       await OpenFile.open(filePath);
     } catch (e) {
       debugPrint("❌ Download and open error: $e");
-      rethrow;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Download failed: $e")),
+      );
     }
   }
 
   // ---------------- DOWNLOAD ONLY ----------------
   Future<void> _downloadFile(Document document) async {
-    if (document.id == null) return;
-    try {
-      if (Platform.isAndroid) {
-        final status = await Permission.storage.request();
-        if (!status.isGranted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Storage permission required")),
-          );
-          return;
-        }
-      }
+    if (document.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Invalid document ID")),
+      );
+      return;
+    }
 
-      final dir = await getApplicationDocumentsDirectory();
+    try {
+      // No broad storage permissions needed; save to app-scoped directory
+
+      // Prefer app-scoped Downloads/documents directory to avoid broad permissions
+      final dir = Platform.isAndroid
+          ? await getExternalStorageDirectory() ??
+              await getApplicationDocumentsDirectory()
+          : await getDownloadsDirectory() ??
+              await getApplicationDocumentsDirectory();
       final filePath = '${dir.path}/${document.fileName ?? "file"}';
 
-      final fileType = (document.fileType ?? "").toLowerCase();
-      final fileName = (document.fileName ?? "").toLowerCase();
+      // ✅ All files → use backend download endpoint with auth
+      final downloadUrl = '${ApiService.baseUrl}/files/${document.id}/download';
 
-      // ✅ PDFs → backend download (with auth)
-      if (fileType.contains("pdf") || fileName.endsWith(".pdf")) {
-        final downloadUrl =
-            '${ApiService.baseUrl}/files/${document.id}/download';
+      final token = await ApiService.getToken();
+      final options = Options(
+        headers: token != null ? {'Authorization': 'Bearer $token'} : {},
+        receiveTimeout: const Duration(seconds: 30),
+        sendTimeout: const Duration(seconds: 30),
+        validateStatus: (status) =>
+            status! < 500, // Allow 4xx errors to be handled
+      );
 
-        final token = await ApiService.getToken();
-        final options = Options(
-          headers: token != null ? {'Authorization': 'Bearer $token'} : {},
-          receiveTimeout: const Duration(seconds: 30),
-          sendTimeout: const Duration(seconds: 30),
-        );
-
-        await dio.download(downloadUrl, filePath, options: options);
-      } else {
-        // ✅ Images & others → download directly from Cloudinary URL
-        if (document.url == null || document.url!.isEmpty) {
-          throw Exception("File URL missing");
-        }
-        final options = Options(
-          receiveTimeout: const Duration(seconds: 30),
-          sendTimeout: const Duration(seconds: 30),
-        );
-        await dio.download(document.url!, filePath, options: options);
-      }
+      await dio.download(downloadUrl, filePath, options: options);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("✅ Downloaded to $filePath")),
+        SnackBar(content: Text("✅ File downloaded: $filePath")),
       );
     } catch (e) {
       debugPrint("❌ Download error: $e");
@@ -219,7 +294,10 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
       final success = await ApiService.deleteDocument(document.id!);
 
       if (success) {
-        setState(() => files.remove(document));
+        setState(() {
+          files.remove(document);
+          filteredFiles.remove(document);
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("✅ Document deleted")),
         );
@@ -238,13 +316,20 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
   Widget _buildThumbnail(Document document) {
     final fileType = (document.fileType ?? "").toLowerCase();
     if (fileType.startsWith("image/")) {
-      return Image.network(
-        "${ApiService.baseUrl}/files/${document.id}/proxy",
+      // For thumbnails, use a simple icon instead of loading the full image
+      // This prevents ANR issues and improves performance
+      return Container(
         width: 50,
         height: 50,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
-            const Icon(Icons.broken_image, color: Colors.grey, size: 40),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(
+          Icons.image,
+          color: Colors.grey,
+          size: 30,
+        ),
       );
     } else if (fileType.contains("pdf")) {
       return const Icon(Icons.picture_as_pdf, color: Colors.red, size: 40);
@@ -274,101 +359,464 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
                 height: 100,
               ),
             )
-          : files.isEmpty
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+          : Column(
+              children: [
+                // Time filter dropdown
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
                     children: [
-                      Icon(Icons.folder_open, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text("No documents uploaded yet",
-                          style: TextStyle(fontSize: 18, color: Colors.grey)),
-                      Text("Upload documents to see them here",
-                          style: TextStyle(fontSize: 14, color: Colors.grey)),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  itemCount: files.length,
-                  itemBuilder: (context, index) {
-                    final file = files[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      child: ListTile(
-                        leading: _buildThumbnail(file),
-                        title: Text(file.title ?? "Untitled"),
-                        subtitle: Text(
-                          'Uploaded: ${file.date ?? ''}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        trailing: Wrap(
-                          spacing: 8,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove_red_eye,
-                                  color: Colors.blue),
-                              onPressed: () => _openFile(file),
-                              tooltip: "Preview",
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.download,
-                                  color: Colors.green),
-                              onPressed: () => _downloadFile(file),
-                              tooltip: "Download",
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _deleteFile(file),
-                              tooltip: "Delete",
-                            ),
-                          ],
+                      const Icon(Icons.filter_list, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Filter by time:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey,
                         ),
                       ),
-                    );
-                  },
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: selectedTimeFilter,
+                          decoration: InputDecoration(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Colors.grey),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Colors.grey),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Colors.blue),
+                            ),
+                          ),
+                          items: timeFilterOptions.map((String option) {
+                            return DropdownMenuItem<String>(
+                              value: option,
+                              child: Text(option),
+                            );
+                          }).toList(),
+                          onChanged: _onFilterChanged,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${filteredFiles.length} of ${files.length}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+
+                // Document list
+                Expanded(
+                  child: filteredFiles.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.folder_open,
+                                  size: 64, color: Colors.grey),
+                              const SizedBox(height: 16),
+                              Text(
+                                files.isEmpty
+                                    ? "No documents uploaded yet"
+                                    : "No documents found for selected time period",
+                                style: const TextStyle(
+                                    fontSize: 18, color: Colors.grey),
+                              ),
+                              Text(
+                                files.isEmpty
+                                    ? "Upload documents to see them here"
+                                    : "Try selecting a different time filter",
+                                style: const TextStyle(
+                                    fontSize: 14, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: filteredFiles.length,
+                          itemBuilder: (context, index) {
+                            final file = filteredFiles[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              child: ListTile(
+                                leading: _buildThumbnail(file),
+                                title: Text(file.title ?? "Untitled"),
+                                subtitle: Text(
+                                  'Uploaded: ${file.date ?? ''}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                trailing: Wrap(
+                                  spacing: 8,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.remove_red_eye,
+                                          color: Colors.blue),
+                                      onPressed: () => _openFile(file),
+                                      tooltip: "Preview",
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.download,
+                                          color: Colors.green),
+                                      onPressed: () => _downloadFile(file),
+                                      tooltip: "Download",
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete,
+                                          color: Colors.red),
+                                      onPressed: () => _deleteFile(file),
+                                      tooltip: "Delete",
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
     );
   }
 }
 
 // ---------------- PDF Preview Page ----------------
-class PdfPreviewPage extends StatelessWidget {
+class PdfPreviewPage extends StatefulWidget {
   final String url;
   final String title;
 
   const PdfPreviewPage({super.key, required this.url, required this.title});
 
   @override
+  State<PdfPreviewPage> createState() => _PdfPreviewPageState();
+}
+
+class _PdfPreviewPageState extends State<PdfPreviewPage> {
+  bool _isLoading = true;
+  String? _error;
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPdf();
+  }
+
+  Future<void> _loadPdf() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      // Add a small delay to ensure UI updates
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // Set up a timeout for the PDF loading
+      await Future.delayed(const Duration(seconds: 1));
+
+      // The SfPdfViewer will handle the actual loading
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  Future<void> _retryLoadPdf() async {
+    if (_retryCount < _maxRetries) {
+      setState(() {
+        _retryCount++;
+        _isLoading = true;
+        _error = null;
+      });
+
+      // Add exponential backoff delay
+      await Future.delayed(Duration(seconds: _retryCount * 2));
+      _loadPdf();
+    } else {
+      setState(() {
+        _error =
+            'Failed to load PDF after $_maxRetries attempts. Please check your internet connection and try again.';
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: SfPdfViewer.network(
-        url,
-        enableDoubleTapZooming: true,
-        enableTextSelection: true,
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: [
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+            ),
+        ],
       ),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Failed to load PDF',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _retryLoadPdf,
+              icon: const Icon(Icons.refresh),
+              label: Text(_retryCount > 0
+                  ? 'Retry (${_retryCount}/$_maxRetries)'
+                  : 'Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        SfPdfViewer.network(
+          widget.url,
+          enableDoubleTapZooming: true,
+          enableTextSelection: true,
+          onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
+            setState(() {
+              _isLoading = false;
+              _error = details.error;
+            });
+            // ✅ Fallback: open externally if viewer fails
+            OpenFile.open(widget.url);
+          },
+          onDocumentLoaded: (PdfDocumentLoadedDetails details) {
+            setState(() {
+              _isLoading = false;
+            });
+          },
+        ),
+        if (_isLoading)
+          Container(
+            color: Colors.white.withOpacity(0.8),
+            child: const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading PDF...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
 
 // ---------------- Image Preview Page ----------------
-class ImagePreviewPage extends StatelessWidget {
+class ImagePreviewPage extends StatefulWidget {
   final String url;
   final String title;
 
   const ImagePreviewPage({super.key, required this.url, required this.title});
 
   @override
+  State<ImagePreviewPage> createState() => _ImagePreviewPageState();
+}
+
+class _ImagePreviewPageState extends State<ImagePreviewPage> {
+  String? _imageDataUrl;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAuthenticatedImage();
+  }
+
+  Future<void> _loadAuthenticatedImage() async {
+    try {
+      // Check if the URL is a signed URL (contains query parameters)
+      // Signed URLs don't need additional authentication
+      final isSignedUrl = widget.url.contains('?');
+
+      if (isSignedUrl) {
+        // For signed URLs, use them directly without additional auth headers
+        setState(() {
+          _imageDataUrl = widget.url;
+          _isLoading = false;
+        });
+      } else {
+        // For non-signed URLs, use authentication
+        final token = await ApiService.getToken();
+        if (token == null) {
+          setState(() {
+            _error = 'No authentication token available';
+            _isLoading = false;
+          });
+          return;
+        }
+
+        // Download to temp file first to avoid memory issues
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File(
+            '${tempDir.path}/temp_image_${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+        final dio = Dio();
+        await dio.download(
+          widget.url,
+          tempFile.path,
+          options: Options(
+            headers: {'Authorization': 'Bearer $token'},
+            validateStatus: (status) =>
+                status! < 500, // Allow 4xx errors to be handled
+          ),
+        );
+
+        if (await tempFile.exists()) {
+          setState(() {
+            _imageDataUrl = tempFile.path; // Use file path directly
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _error = 'Failed to download image';
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Error loading image: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: Text(widget.title)),
       body: Center(
-        child: InteractiveViewer(
-          child: Image.network(url, fit: BoxFit.contain),
-        ),
+        child: _isLoading
+            ? const CircularProgressIndicator()
+            : _error != null
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(_error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadAuthenticatedImage,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  )
+                : _imageDataUrl != null
+                    ? InteractiveViewer(
+                        child: (_imageDataUrl!.startsWith('http')
+                            ? Image.network(
+                                _imageDataUrl!,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.error,
+                                            size: 64, color: Colors.red),
+                                        SizedBox(height: 16),
+                                        Text('Failed to load image'),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              )
+                            : Image.file(
+                                File(_imageDataUrl!),
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.error,
+                                            size: 64, color: Colors.red),
+                                        SizedBox(height: 16),
+                                        Text('Failed to load image'),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              )),
+                      )
+                    : const Text('No image data available'),
       ),
     );
   }

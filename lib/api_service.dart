@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'Document_model.dart';
+import 'package:http_parser/http_parser.dart';
 
 class ApiService {
   static const String baseUrl = "https://backend-medicalvault.onrender.com/api";
@@ -110,11 +111,18 @@ class ApiService {
 
       final stream = http.ByteStream(file.openRead());
       final length = await file.length();
+
+      // ✅ Detect MIME type by file extension and set explicit contentType
+      String filename = file.path.split("/").last;
+      final lowerName = filename.toLowerCase();
+      String mimeType = _detectMimeType(lowerName);
+
       final multipartFile = http.MultipartFile(
         "file",
         stream,
         length,
-        filename: file.path.split("/").last,
+        filename: filename,
+        contentType: MediaType.parse(mimeType),
       );
       request.files.add(multipartFile);
 
@@ -131,6 +139,50 @@ class ApiService {
     } catch (e) {
       print("Upload error: $e");
       return null;
+    }
+  }
+
+  // ---------------- MIME TYPE HELPERS ----------------
+  static String _detectMimeType(String filename) {
+    final ext =
+        filename.contains('.') ? filename.split('.').last.toLowerCase() : '';
+    switch (ext) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'gif':
+        return 'image/gif';
+      case 'bmp':
+        return 'image/bmp';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+      case 'heif':
+        return 'image/heic';
+      case 'txt':
+        return 'text/plain';
+      case 'csv':
+        return 'text/csv';
+      case 'json':
+        return 'application/json';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'ppt':
+        return 'application/vnd.ms-powerpoint';
+      case 'pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      default:
+        return 'application/octet-stream';
     }
   }
 
