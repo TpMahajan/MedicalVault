@@ -132,7 +132,7 @@ class _ProfileNameState extends State<ProfileName> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(12.0),
@@ -141,7 +141,7 @@ class _ProfileNameState extends State<ProfileName> {
             children: [
               // Profile Header
               Card(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
                 child: Padding(
@@ -155,10 +155,15 @@ class _ProfileNameState extends State<ProfileName> {
                       ),
                       const SizedBox(height: 8),
                       Text(user['name'] ?? '',
-                          style: const TextStyle(
-                              fontSize: 22, fontWeight: FontWeight.bold)),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold)),
                       Text(user['email'] ?? '',
-                          style: const TextStyle(color: Colors.grey)),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(color: Theme.of(context).hintColor)),
                     ],
                   ),
                 ),
@@ -244,31 +249,44 @@ class _ProfileNameState extends State<ProfileName> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Text(title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold)),
     );
   }
 
   Widget _infoRow(IconData icon, String label, String value) {
     return Card(
-      color: Colors.white,
+      color: Theme.of(context).cardColor,
       margin: const EdgeInsets.symmetric(vertical: 3),
       child: ListTile(
         leading: Icon(icon, color: Colors.blue),
-        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(label,
+            style: Theme.of(context)
+                .textTheme
+                .bodyLarge
+                ?.copyWith(fontWeight: FontWeight.w600)),
         subtitle: Text(value.isNotEmpty ? value : "N/A",
-            style: const TextStyle(color: Colors.black87)),
+            style: Theme.of(context).textTheme.bodyMedium),
       ),
     );
   }
 
   Widget _listSection(List items, String Function(dynamic) format) {
     return items.isEmpty
-        ? const Text("No data available", style: TextStyle(color: Colors.grey))
+        ? Text("No data available",
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: Theme.of(context).hintColor))
         : Column(
             children: items
                 .map<Widget>((item) => Card(
-                      color: Colors.white,
-                      child: ListTile(title: Text(format(item))),
+                      color: Theme.of(context).cardColor,
+                      child: ListTile(
+                          title: Text(format(item),
+                              style: Theme.of(context).textTheme.bodyMedium)),
                     ))
                 .toList(),
           );
@@ -290,21 +308,31 @@ class _ProfileNameState extends State<ProfileName> {
 
   Widget _recordCategoryTile(String title, List items) {
     return Card(
-      color: Colors.white,
+      color: Theme.of(context).cardColor,
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ExpansionTile(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(title,
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.bold)),
         children: items.isEmpty
-            ? [const ListTile(title: Text("No records available"))]
+            ? [
+                ListTile(
+                    title: Text("No records available",
+                        style: Theme.of(context).textTheme.bodyMedium))
+              ]
             : items.map<Widget>((item) {
                 // ✅ Convert to Document object for consistent handling
                 final document = Document.fromApi(item);
 
                 return ListTile(
                   leading: _getFileIcon(document.fileType ?? ""),
-                  title: Text(document.title ?? "Untitled"),
+                  title: Text(document.title ?? "Untitled",
+                      style: Theme.of(context).textTheme.bodyLarge),
                   subtitle: Text(
-                      "${document.date ?? 'Unknown date'} • ${document.fileType ?? 'Unknown type'}"),
+                      "${document.date ?? 'Unknown date'} • ${document.fileType ?? 'Unknown type'}",
+                      style: Theme.of(context).textTheme.bodySmall),
                   // ✅ No onTap - just show metadata as requested
                 );
               }).toList(),

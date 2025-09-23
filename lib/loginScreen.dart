@@ -49,7 +49,7 @@ class LoginScreen extends StatelessWidget {
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
@@ -67,23 +67,22 @@ class LoginScreen extends StatelessWidget {
                           color: Colors.blue, size: 40),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Health Vault',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Securely access your health data.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: Theme.of(context).hintColor),
                     ),
                   ],
                 ),
@@ -93,7 +92,7 @@ class LoginScreen extends StatelessWidget {
                 controller: Email,
                 decoration: InputDecoration(
                   hintText: 'Email',
-                  fillColor: Colors.grey[200],
+                  fillColor: Theme.of(context).cardColor,
                   filled: true,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -107,7 +106,7 @@ class LoginScreen extends StatelessWidget {
                 obscureText: true,
                 decoration: InputDecoration(
                   hintText: 'Password',
-                  fillColor: Colors.grey[200],
+                  fillColor: Theme.of(context).cardColor,
                   filled: true,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -169,7 +168,8 @@ class LoginScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account? "),
+                  Text("Don't have an account? ",
+                      style: Theme.of(context).textTheme.bodyMedium),
                   TextButton(
                     onPressed: () {
                       Navigator.push(

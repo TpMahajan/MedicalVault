@@ -82,15 +82,12 @@ class _Dashboard1State extends State<Dashboard1> {
       future: _getStoredName(),
       builder: (context, snapshot) {
         final userName =
-        passedName.isNotEmpty ? passedName : (snapshot.data ?? "Patient");
+            passedName.isNotEmpty ? passedName : (snapshot.data ?? "Patient");
 
         return Scaffold(
           appBar: AppBar(
             automaticallyImplyLeading: false,
-            title: Text(appbarTitle,
-                style: const TextStyle(color: Colors.black)),
-            backgroundColor: Colors.white,
-            elevation: 0,
+            title: Text(appbarTitle),
           ),
           body: PageView(
             controller: _pageController,
@@ -179,7 +176,7 @@ class _Dashboard1State extends State<Dashboard1> {
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: 4,
                       gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
+                          const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
@@ -263,8 +260,12 @@ class _Dashboard1State extends State<Dashboard1> {
                   BottomNavigationBarItem(
                       icon: Icon(Icons.settings), label: 'Settings'),
                 ],
-                selectedItemColor: Colors.blue,
-                unselectedItemColor: Colors.grey,
+                selectedItemColor: Theme.of(context)
+                    .bottomNavigationBarTheme
+                    .selectedItemColor,
+                unselectedItemColor: Theme.of(context)
+                    .bottomNavigationBarTheme
+                    .unselectedItemColor,
               ),
               const AppFooter(),
             ],
@@ -276,9 +277,9 @@ class _Dashboard1State extends State<Dashboard1> {
 
   Widget _buildCategoryCard(BuildContext context,
       {required String title,
-        required String imagePath,
-        required String category,
-        required int count}) {
+      required String imagePath,
+      required String category,
+      required int count}) {
     return GestureDetector(
       onTap: () async {
         await Navigator.push(
@@ -307,8 +308,7 @@ class _Dashboard1State extends State<Dashboard1> {
             Text(title, style: const TextStyle(color: Colors.blueGrey)),
             const SizedBox(height: 4),
             Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),

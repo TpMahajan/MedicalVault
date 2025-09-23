@@ -200,11 +200,8 @@ class _RequestsPageState extends State<RequestsPage> {
       appBar: AppBar(
         title: const Text(
           "Doctor Requests",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: Colors.black),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

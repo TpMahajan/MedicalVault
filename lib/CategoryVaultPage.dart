@@ -345,8 +345,6 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.category),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadFiles),
         ],
@@ -366,16 +364,15 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      const Icon(Icons.filter_list, color: Colors.grey),
+                      Icon(Icons.filter_list,
+                          color: Theme.of(context).iconTheme.color),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Filter by time:',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey,
-                        ),
-                      ),
+                      Text('Filter by time:',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  )),
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
@@ -387,15 +384,18 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Colors.grey),
+                              borderSide: BorderSide(
+                                  color: Theme.of(context).dividerColor),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Colors.grey),
+                              borderSide: BorderSide(
+                                  color: Theme.of(context).dividerColor),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Colors.blue),
+                              borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.primary),
                             ),
                           ),
                           items: timeFilterOptions.map((String option) {
@@ -408,13 +408,8 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        '${filteredFiles.length} of ${files.length}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
+                      Text('${filteredFiles.length} of ${files.length}',
+                          style: Theme.of(context).textTheme.bodySmall),
                     ],
                   ),
                 ),
@@ -426,22 +421,30 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.folder_open,
-                                  size: 64, color: Colors.grey),
+                              Icon(Icons.folder_open,
+                                  size: 64,
+                                  color: Theme.of(context).disabledColor),
                               const SizedBox(height: 16),
                               Text(
                                 files.isEmpty
                                     ? "No documents uploaded yet"
                                     : "No documents found for selected time period",
-                                style: const TextStyle(
-                                    fontSize: 18, color: Colors.grey),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(
+                                        fontSize: 18,
+                                        color: Theme.of(context).hintColor),
                               ),
                               Text(
                                 files.isEmpty
                                     ? "Upload documents to see them here"
                                     : "Try selecting a different time filter",
-                                style: const TextStyle(
-                                    fontSize: 14, color: Colors.grey),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                        color: Theme.of(context).hintColor),
                               ),
                             ],
                           ),
@@ -460,7 +463,7 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
                                 title: Text(file.title ?? "Untitled"),
                                 subtitle: Text(
                                   'Uploaded: ${file.date ?? ''}',
-                                  style: const TextStyle(fontSize: 12),
+                                  style: Theme.of(context).textTheme.bodySmall,
                                 ),
                                 trailing: Wrap(
                                   spacing: 8,

@@ -497,7 +497,7 @@ class _MyVaultState extends State<MyVault> {
               decoration: InputDecoration(
                 hintText: 'Search',
                 prefixIcon: const Icon(Icons.search),
-                fillColor: const Color(0xFFE8F0FE),
+                fillColor: Theme.of(context).cardColor,
                 filled: true,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
@@ -536,8 +536,11 @@ class _MyVaultState extends State<MyVault> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("Sort",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text("Sort",
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.bold)),
                 SizedBox(
                   width: 160,
                   child: DropdownButton<String>(
@@ -583,7 +586,8 @@ class _MyVaultState extends State<MyVault> {
                               leading: const Icon(Icons.insert_drive_file,
                                   color: Colors.blue),
                               title: Text(doc.title ?? "Untitled"),
-                              subtitle: Text("${doc.category} • ${doc.date}"),
+                              subtitle: Text("${doc.category} • ${doc.date}",
+                                  style: Theme.of(context).textTheme.bodySmall),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [

@@ -1,13 +1,10 @@
-import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:http/http.dart' as http;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'HowQrAcessWorks.dart';
@@ -35,10 +32,7 @@ class _QRPageState extends State<QRPage> {
     _regenerateQR(); // auto-generate on open
   }
 
-  Future<String?> _readSessionToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('session_token') ?? prefs.getString('auth_token');
-  }
+  // Removed unused _readSessionToken
 
   Future<void> _regenerateQR() async {
     setState(() {
@@ -66,16 +60,15 @@ class _QRPageState extends State<QRPage> {
     }
   }
 
-
   Future<void> _shareQR() async {
     try {
-      final boundary =
-      _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final boundary = _repaintKey.currentContext!.findRenderObject()
+          as RenderRepaintBoundary;
       final image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
-      final xfile = XFile.fromData(pngBytes,
-          name: 'qr_code.png', mimeType: 'image/png');
+      final xfile =
+          XFile.fromData(pngBytes, name: 'qr_code.png', mimeType: 'image/png');
       await Share.shareXFiles([xfile], text: 'Share this QR code');
     } catch (e) {
       if (!mounted) return;
@@ -88,7 +81,7 @@ class _QRPageState extends State<QRPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(vertical: 20),
@@ -106,9 +99,8 @@ class _QRPageState extends State<QRPage> {
                       opaque: false,
                       transitionDuration: const Duration(milliseconds: 400),
                       reverseTransitionDuration:
-                      const Duration(milliseconds: 300),
-                      pageBuilder: (_, __, ___) =>
-                          QRZoomPage(qrData: _qrData),
+                          const Duration(milliseconds: 300),
+                      pageBuilder: (_, __, ___) => QRZoomPage(qrData: _qrData),
                     ),
                   );
                 },
@@ -131,11 +123,11 @@ class _QRPageState extends State<QRPage> {
                           child: _loading
                               ? const Center(child: CircularProgressIndicator())
                               : QrImageView(
-                            data: _qrData,
-                            version: QrVersions.auto,
-                            size: 220,
-                            backgroundColor: Colors.white,
-                          ),
+                                  data: _qrData,
+                                  version: QrVersions.auto,
+                                  size: 220,
+                                  backgroundColor: Colors.white,
+                                ),
                         ),
                       ),
                     ),
@@ -144,13 +136,12 @@ class _QRPageState extends State<QRPage> {
               ),
 
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 "Doctor will scan this QR to request access",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 30),
 
@@ -220,14 +211,16 @@ class _QRPageState extends State<QRPage> {
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(top: 8),
                         decoration: BoxDecoration(
-                          color: Colors.red[50],
-                          border: Border.all(color: Colors.red.shade200),
+                          color: Theme.of(context).colorScheme.errorContainer,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           _lastError!,
-                          style: const TextStyle(
-                              color: Colors.red, fontSize: 13),
+                          style: TextStyle(
+                            color:
+                                Theme.of(context).colorScheme.onErrorContainer,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
 
@@ -293,8 +286,7 @@ class _QRZoomPageState extends State<QRZoomPage>
     );
     _scaleAnimation =
         CurvedAnimation(parent: _controller, curve: Curves.easeOutBack);
-    _fadeAnimation =
-        CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
     _controller.forward();
   }
 
@@ -318,7 +310,11 @@ class _QRZoomPageState extends State<QRZoomPage>
           children: [
             BackdropFilter(
               filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: Container(color: Colors.white.withOpacity(0.6)),
+              child: Container(
+                color: (Theme.of(context).brightness == Brightness.dark)
+                    ? Colors.black.withOpacity(0.6)
+                    : Colors.white.withOpacity(0.6),
+              ),
             ),
             Center(
               child: Hero(

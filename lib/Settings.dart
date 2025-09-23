@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'main.dart';
 
 import 'QR.dart';
 import 'SettingPages/ChangePassword.dart';
@@ -68,27 +70,31 @@ class _SettingsPageState extends State<SettingsPage> {
           const SectionTitle("QR & Sharing"),
           _buildTile(Icons.qr_code, "Regenerate QR", "", QRPage()),
           _buildTile(Icons.share, "Sharing Controls", "", QRPage()),
+          const SectionTitle("Personal Details"),
+          _buildDarkModeRow(context),
           const SectionTitle("Notifications"),
-          _buildSwitchTile("Approvals", "Receive notifications for approvals",
-              approvals, (val) {
-                setState(() => approvals = val);
-              }),
-          _buildSwitchTile("Reminders", "Receive notifications for reminders",
-              reminders, (val) {
-                setState(() => reminders = val);
-              }),
-          _buildSwitchTile("System", "Receive system notifications",
-              systemNotifs, (val) {
-                setState(() => systemNotifs = val);
-              }),
+          _buildSwitchTile(
+              "Approvals", "Receive notifications for approvals", approvals,
+              (val) {
+            setState(() => approvals = val);
+          }),
+          _buildSwitchTile(
+              "Reminders", "Receive notifications for reminders", reminders,
+              (val) {
+            setState(() => reminders = val);
+          }),
+          _buildSwitchTile(
+              "System", "Receive system notifications", systemNotifs, (val) {
+            setState(() => systemNotifs = val);
+          }),
           const SectionTitle("Privacy & Terms"),
           _buildTile(Icons.privacy_tip, "Privacy Policy", "", PrivacyPolicy()),
           _buildTile(
               Icons.description, "Terms of Service", "", TermsOfService()),
           const SectionTitle("Help & Support"),
           _buildTile(Icons.help_outline, "FAQs", "", FAQs()),
-          _buildTile(
-              Icons.support_agent, "Contact Support", "", ContactSupportScreen()),
+          _buildTile(Icons.support_agent, "Contact Support", "",
+              ContactSupportScreen()),
           const SectionTitle("Account"),
           _buildTile(Icons.logout, "Logout", "", LoginScreen()),
         ],
@@ -102,7 +108,7 @@ class _SettingsPageState extends State<SettingsPage> {
       title: Text(title),
       subtitle: subtitle.isNotEmpty
           ? Text(subtitle,
-          style: const TextStyle(fontSize: 12, color: Colors.grey))
+              style: const TextStyle(fontSize: 12, color: Colors.grey))
           : null,
       onTap: () {
         Navigator.push(
@@ -121,6 +127,19 @@ class _SettingsPageState extends State<SettingsPage> {
           style: const TextStyle(fontSize: 12, color: Colors.grey)),
       value: value,
       onChanged: onChanged,
+    );
+  }
+
+  Widget _buildDarkModeRow(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.themeMode == ThemeMode.dark;
+    return ListTile(
+      leading: const Icon(Icons.dark_mode),
+      title: const Text("Dark Mode"),
+      trailing: Switch(
+        value: isDark,
+        onChanged: (_) => themeProvider.toggleTheme(),
+      ),
     );
   }
 }

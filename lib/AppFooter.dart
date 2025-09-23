@@ -7,29 +7,27 @@ class AppFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: Theme.of(context).bottomNavigationBarTheme.backgroundColor ??
+            Theme.of(context).cardColor,
         border: Border(
-          top: BorderSide(color: Colors.grey, width: 0.1),
+          top: BorderSide(color: Theme.of(context).dividerColor, width: 0.1),
         ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
+          Text(
             "Powered by ",
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
-              fontWeight: FontWeight.w500,
-            ),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontSize: 14,
+                ),
           ),
           Image.asset(
             "assets/AiAllyLogo.png", // 👈 yaha apna footer image daal
             height: 30,
           ),
           const SizedBox(width: 8),
-
         ],
       ),
     );

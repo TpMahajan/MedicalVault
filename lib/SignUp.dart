@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'loginScreen.dart';
-import 'main.dart'; // For WelcomeScreen
-import 'dashboard1.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -61,9 +59,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => LoginScreen()),
-
+          MaterialPageRoute(builder: (context) => LoginScreen()),
         );
       } else {
         final msg = jsonDecode(response.body)["message"] ?? "Signup failed";
@@ -83,7 +79,7 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -102,23 +98,22 @@ class _SignUpPageState extends State<SignUpPage> {
                             color: Colors.blue, size: 40),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
+                      Text(
                         'Create Your Health Vault',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Securely store and manage your health data.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: Theme.of(context).hintColor),
                       ),
                     ],
                   ),
@@ -194,8 +189,9 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
                 const SizedBox(height: 16),
                 CheckboxListTile(
-                  title: const Text(
-                      'By signing up, you agree to our Terms of Service and Privacy Policy.'),
+                  title: Text(
+                      'By signing up, you agree to our Terms of Service and Privacy Policy.',
+                      style: Theme.of(context).textTheme.bodyMedium),
                   value: _agreeToTerms,
                   onChanged: (val) =>
                       setState(() => _agreeToTerms = val ?? false),

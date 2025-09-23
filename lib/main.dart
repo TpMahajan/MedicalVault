@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'SignUp.dart';
 import 'loginScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // ✅ Removed MongoDB connection - now using backend API
-  runApp(const MyApp());
+  final themeMode = await ThemeProvider.loadThemeMode();
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(themeMode),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -14,13 +21,106 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Health Vault',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: AppThemes.lightTheme,
+      darkTheme: AppThemes.darkTheme,
+      themeMode: themeProvider.themeMode,
       home: const WelcomeScreen(),
+    );
+  }
+}
+
+class ThemeProvider extends ChangeNotifier {
+  static const String _themeKey = 'app_theme_mode'; // 'light' | 'dark'
+
+  ThemeMode _themeMode;
+  ThemeMode get themeMode => _themeMode;
+
+  ThemeProvider(this._themeMode);
+
+  static Future<ThemeMode> loadThemeMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_themeKey);
+    if (saved == 'dark') return ThemeMode.dark;
+    return ThemeMode.light;
+  }
+
+  Future<void> toggleTheme() async {
+    _themeMode =
+        _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        _themeKey, _themeMode == ThemeMode.dark ? 'dark' : 'light');
+    notifyListeners();
+  }
+}
+
+class AppThemes {
+  static ThemeData get lightTheme {
+    return ThemeData(
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: Colors.white,
+      colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue, brightness: Brightness.light),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0.5,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Colors.white,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
+        showUnselectedLabels: true,
+      ),
+      navigationBarTheme: const NavigationBarThemeData(
+        backgroundColor: Colors.white,
+        indicatorColor: Color(0x1A2196F3),
+        labelTextStyle:
+            WidgetStatePropertyAll(TextStyle(color: Colors.black87)),
+      ),
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(color: Colors.black87),
+        bodyMedium: TextStyle(color: Colors.black87),
+      ),
+      cardColor: Colors.white,
+      dialogBackgroundColor: Colors.white,
+    );
+  }
+
+  static ThemeData get darkTheme {
+    return ThemeData(
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: const Color(0xFF121212),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: Colors.blue,
+        brightness: Brightness.dark,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFF1E1E1E),
+        foregroundColor: Colors.white,
+        elevation: 0.5,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Color(0xFF1E1E1E),
+        selectedItemColor: Colors.lightBlueAccent,
+        unselectedItemColor: Colors.white70,
+        showUnselectedLabels: true,
+      ),
+      navigationBarTheme: const NavigationBarThemeData(
+        backgroundColor: Color(0xFF1E1E1E),
+        indicatorColor: Color(0x332196F3),
+        labelTextStyle: WidgetStatePropertyAll(TextStyle(color: Colors.white)),
+      ),
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(color: Colors.white),
+        bodyMedium: TextStyle(color: Colors.white70),
+      ),
+      cardColor: const Color(0xFF1E1E1E),
+      dialogBackgroundColor: const Color(0xFF1E1E1E),
     );
   }
 }
@@ -31,8 +131,7 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          const Color(0xFFF0F8FF), // Light blue-ish white background
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -53,18 +152,15 @@ class WelcomeScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white, // Base color for the gradient
+                    color: Colors.white, // Keep gradient text base
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Your health journey starts here. Track your progress, connect with professionals, and achieve your wellness goals.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black87,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 48),
               Container(
@@ -109,18 +205,18 @@ class WelcomeScreen extends StatelessWidget {
                   );
                 },
                 style: TextButton.styleFrom(
-                  backgroundColor: Colors.grey[200],
+                  backgroundColor: Theme.of(context).cardColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'Sign up',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.black87,
-                  ),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.copyWith(fontSize: 18),
                 ),
               ),
               const Spacer(),
