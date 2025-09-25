@@ -123,9 +123,9 @@ class _ProfileNameState extends State<ProfileName> {
       return Scaffold(
         body: Center(
           child: Lottie.asset(
-            'assets/LoadingClock.json',
-            width: 100,
-            height: 100,
+            'assets/twodotloading.json',
+            width: 120,
+            height: 120,
           ),
         ),
       );
@@ -389,9 +389,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       "weight",
       "lastVisit",
       "nextAppointment",
-      "ecName",
-      "ecRelationship",
-      "ecPhone"
+      "Emergency Contact Name",
+      "Emergency Contact Relationship",
+      "Emergency Contact Phone"
     ]) {
       String value = "";
       if (field.startsWith("ec")) {
@@ -658,9 +658,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       "lastVisit": _controllers["lastVisit"]!.text,
                       "nextAppointment": _controllers["nextAppointment"]!.text,
                       "emergencyContact": {
-                        "name": _controllers["ecName"]!.text,
-                        "relationship": _controllers["ecRelationship"]!.text,
-                        "phone": _controllers["ecPhone"]!.text,
+                        "name": _controllers["Emergency Contact Name"]!.text,
+                        "relationship":
+                            _controllers["Emergency Contact Relationship"]!
+                                .text,
+                        "phone": _controllers["Emergency Contact Phone"]!.text,
                       },
                       "medicalHistory": medicalHistory,
                       "medications": medications,

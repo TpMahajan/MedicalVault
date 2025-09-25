@@ -243,7 +243,8 @@ class _SettingsPageState extends State<SettingsPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            icon: Icon(Icons.swap_horiz, color: Theme.of(context).primaryColor),
+            icon: Icon(Icons.swap_horiz,
+                color: Theme.of(context).iconTheme.color),
             onPressed: () => _showSwitchProfileDialog(profile),
             tooltip: "Switch to this profile",
           ),
@@ -341,8 +342,8 @@ class _SettingsPageState extends State<SettingsPage> {
           actions: [
             TextButton(
               onPressed: isLoading ? null : () => Navigator.pop(context),
-              child: Text("Cancel",
-                  style: TextStyle(color: Theme.of(context).primaryColor)),
+              child:
+                  Text("Cancel", style: Theme.of(context).textTheme.bodyLarge),
             ),
             TextButton(
               onPressed: isLoading
@@ -442,8 +443,8 @@ class _SettingsPageState extends State<SettingsPage> {
           actions: [
             TextButton(
               onPressed: isLoading ? null : () => Navigator.pop(context),
-              child: Text("Cancel",
-                  style: TextStyle(color: Theme.of(context).primaryColor)),
+              child:
+                  Text("Cancel", style: Theme.of(context).textTheme.bodyLarge),
             ),
             TextButton(
               onPressed: isLoading
@@ -517,8 +518,8 @@ class _SettingsPageState extends State<SettingsPage> {
           actions: [
             TextButton(
               onPressed: isLoading ? null : () => Navigator.pop(context),
-              child: Text("Cancel",
-                  style: TextStyle(color: Theme.of(context).primaryColor)),
+              child:
+                  Text("Cancel", style: Theme.of(context).textTheme.bodyLarge),
             ),
             TextButton(
               onPressed: isLoading
@@ -585,8 +586,7 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text("Cancel",
-                style: TextStyle(color: Theme.of(context).primaryColor)),
+            child: Text("Cancel", style: Theme.of(context).textTheme.bodyLarge),
           ),
           TextButton(
             onPressed: () async {

@@ -4,12 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:hello/firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 import 'SignUp.dart';
 import 'loginScreen.dart';
 import 'fcm_service.dart';
-import 'dashboard1.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -308,52 +306,10 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
-  bool _isLoading = true;
-  bool _isAuthenticated = false;
-  Map<String, dynamic>? _userData;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkAuthStatus();
-  }
-
-  Future<void> _checkAuthStatus() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('authToken');
-      final userDataString = prefs.getString('userData');
-
-      if (token != null && userDataString != null) {
-        final userData = jsonDecode(userDataString);
-        setState(() {
-          _isAuthenticated = true;
-          _userData = userData;
-        });
-      }
-    } catch (e) {
-      print("Error checking auth status: $e");
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    if (_isAuthenticated && _userData != null) {
-      return Dashboard1(userData: _userData!);
-    }
-
+    // Always show WelcomeScreen first, regardless of authentication status
+    // Users will navigate to dashboard through normal login flow
     return const WelcomeScreen();
   }
 }

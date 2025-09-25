@@ -246,7 +246,7 @@ class _ProfileSwitcherModalState extends State<ProfileSwitcherModal> {
               )
             : Icon(
                 Icons.swap_horiz,
-                color: Theme.of(context).primaryColor,
+                color: Theme.of(context).iconTheme.color,
               ),
         onTap: isLoading ? null : () => _showSwitchDialog(profile),
       ),
@@ -289,8 +289,8 @@ class _ProfileSwitcherModalState extends State<ProfileSwitcherModal> {
             TextButton(
               onPressed:
                   isPasswordLoading ? null : () => Navigator.pop(context),
-              child: Text("Cancel",
-                  style: TextStyle(color: Theme.of(context).primaryColor)),
+              child:
+                  Text("Cancel", style: Theme.of(context).textTheme.bodyLarge),
             ),
             TextButton(
               onPressed: isPasswordLoading

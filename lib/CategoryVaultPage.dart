@@ -352,9 +352,9 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
       body: _isLoading
           ? Center(
               child: Lottie.asset(
-                "assets/LoadingClock.json",
-                width: 100,
-                height: 100,
+                "assets/twodotloading.json",
+                width: 120,
+                height: 120,
               ),
             )
           : Column(
