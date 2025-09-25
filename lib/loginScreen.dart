@@ -6,9 +6,26 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_service.dart'; // 👈 Added
+import 'SettingPages/ChangePassword.dart'; // 👈 Added for forgot password
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isPasswordVisible = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   static const String baseUrl = "https://backend-medicalvault.onrender.com/api";
 
@@ -44,9 +61,6 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    TextEditingController Email = TextEditingController();
-    TextEditingController Password = TextEditingController();
-
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -118,7 +132,7 @@ class LoginScreen extends StatelessWidget {
               ),
               const SizedBox(height: 40),
               TextField(
-                controller: Email,
+                controller: _emailController,
                 decoration: InputDecoration(
                   hintText: 'Email',
                   fillColor: Theme.of(context).cardColor,
@@ -148,8 +162,8 @@ class LoginScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               TextField(
-                controller: Password,
-                obscureText: true,
+                controller: _passwordController,
+                obscureText: !_isPasswordVisible,
                 decoration: InputDecoration(
                   hintText: 'Password',
                   fillColor: Theme.of(context).cardColor,
@@ -175,9 +189,64 @@ class LoginScreen extends StatelessWidget {
                       width: 2,
                     ),
                   ),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.color
+                          ?.withOpacity(0.6),
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                  ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+              // Forgot Password Button
+              Align(
+                alignment: Alignment.centerRight,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ForgotPasswordScreen(),
+                        ),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    child: Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Theme.of(context).primaryColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               Container(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
@@ -190,8 +259,8 @@ class LoginScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () async {
                     final result = await ApiService.login(
-                      Email.text.trim(),
-                      Password.text.trim(),
+                      _emailController.text.trim(),
+                      _passwordController.text.trim(),
                     );
                     if (result != null) {
                       // ✅ Get user data from SharedPreferences after login
@@ -232,18 +301,43 @@ class LoginScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text("Don't have an account? ",
-                      style: Theme.of(context).textTheme.bodyMedium),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const SignUpPage()),
-                      );
-                    },
-                    child: const Text(
-                      'Sign up',
-                      style: TextStyle(color: Colors.blue),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withOpacity(0.8),
+                          )),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const SignUpPage()),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      child: Text(
+                        'Sign up',
+                        style: TextStyle(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Theme.of(context).primaryColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
                     ),
                   ),
                 ],
