@@ -60,15 +60,44 @@ class LoginScreen extends StatelessWidget {
               Center(
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: Colors.blue[100],
-                      child: const Icon(Icons.shield,
-                          color: Colors.blue, size: 40),
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          'assets/icon/app_icon.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            // Fallback to shield icon if image fails to load
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: Colors.blue[100],
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Icon(
+                                Icons.shield,
+                                color: Colors.blue,
+                                size: 40,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Health Vault',
+                      'Medical Vault',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontSize: 28,
@@ -77,7 +106,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Securely access your health data.',
+                      'Securely access your Medical data.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context)
                           .textTheme
@@ -96,7 +125,24 @@ class LoginScreen extends StatelessWidget {
                   filled: true,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
+                    borderSide: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                      width: 1,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                      width: 1,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).primaryColor,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -110,7 +156,24 @@ class LoginScreen extends StatelessWidget {
                   filled: true,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
+                    borderSide: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                      width: 1,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                      width: 1,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).primaryColor,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),

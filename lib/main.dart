@@ -1,12 +1,28 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:hello/firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 import 'SignUp.dart';
 import 'loginScreen.dart';
+import 'fcm_service.dart';
+import 'dashboard1.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Initialize FCM service
+  await FCMService().initialize();
+
+  // Set up background message handler
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
   final themeMode = await ThemeProvider.loadThemeMode();
   runApp(
     ChangeNotifierProvider(
@@ -28,7 +44,7 @@ class MyApp extends StatelessWidget {
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
       themeMode: themeProvider.themeMode,
-      home: const WelcomeScreen(),
+      home: const AuthWrapper(),
     );
   }
 }
@@ -125,8 +141,64 @@ class AppThemes {
   }
 }
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  late FirebaseMessaging messaging;
+  @override
+  void initState() {
+    super.initState();
+    FirebaseMessaging.instance.getToken().then((token) {
+      print("Firebase Messaging Token: $token");
+    });
+    messaging = FirebaseMessaging.instance;
+    // Request permission for receiving notifications
+    messaging.requestPermission(
+      criticalAlert: true,
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // Handle incoming messages while the app is in the foreground
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (message.notification != null) {
+        // Show alert dialog
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              icon: Icon(Icons.warning),
+              title: Text(message.notification!.title ?? 'Notification'),
+              content: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Close'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      }
+    });
+
+    // Handle notification taps while the app is in the background
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('Message clicked while app is in background: ${message.messageId}');
+      // Navigate to appropriate screen based on the message
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -225,5 +297,63 @@ class WelcomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _isLoading = true;
+  bool _isAuthenticated = false;
+  Map<String, dynamic>? _userData;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthStatus();
+  }
+
+  Future<void> _checkAuthStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('authToken');
+      final userDataString = prefs.getString('userData');
+
+      if (token != null && userDataString != null) {
+        final userData = jsonDecode(userDataString);
+        setState(() {
+          _isAuthenticated = true;
+          _userData = userData;
+        });
+      }
+    } catch (e) {
+      print("Error checking auth status: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_isAuthenticated && _userData != null) {
+      return Dashboard1(userData: _userData!);
+    }
+
+    return const WelcomeScreen();
   }
 }

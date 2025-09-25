@@ -31,6 +31,9 @@ dependencies:
   permission_handler: ^10.4.1
   cupertino_icons: ^1.0.5
   provider: ^6.1.4
+  firebase_messaging: ^16.0.2
+  firebase_core: ^4.1.1
+  googleapis_auth: ^2.0.0
 
 dev_dependencies:
   flutter_test:
@@ -51,6 +54,7 @@ flutter:
     - assets/AiAllyLogo.png
     - assets/BloodReport.png
     - assets/HospitalBill.png
+    - assets/icon/app_icon.png
     - assets/LoadingClock.json
 
 flutter_icons:

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dashboard1.dart';
 
 // Session Request Model
 class SessionRequest {
@@ -201,6 +202,24 @@ class _RequestsPageState extends State<RequestsPage> {
         title: const Text(
           "Doctor Requests",
           style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () async {
+            // Get user data from SharedPreferences
+            final prefs = await SharedPreferences.getInstance();
+            final userDataString = prefs.getString('userData');
+            final userData = userDataString != null
+                ? jsonDecode(userDataString)
+                : <String, dynamic>{};
+
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => Dashboard1(userData: userData),
+              ),
+            );
+          },
         ),
         actions: [
           IconButton(

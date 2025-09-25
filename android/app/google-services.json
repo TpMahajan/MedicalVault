@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "317600481828",
-    "project_id": "healthvault-a9e08",
-    "storage_bucket": "healthvault-a9e08.firebasestorage.app"
+    "project_number": "17869523090",
+    "project_id": "medicalvaultnotifications",
+    "storage_bucket": "medicalvaultnotifications.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:317600481828:android:5a336043158c456fbf4eb1",
+        "mobilesdk_app_id": "1:17869523090:android:4e9fa2ca8f13c122533e4b",
         "android_client_info": {
           "package_name": "com.example.hello"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDbZxsC9EYEfDR8bOZldkIovRkjl2tZ9Ac"
+          "current_key": "AIzaSyCI-KwqdQxRW6J8Y-e1BMjWHqYb19HN8pY"
         }
       ],
       "services": {

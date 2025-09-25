@@ -4,7 +4,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'api_service.dart';
-import 'Document_model.dart';
 
 class UploadDocument extends StatefulWidget {
   final String userId;
@@ -63,7 +62,9 @@ class _UploadDocumentState extends State<UploadDocument> {
   }
 
   Future<void> _uploadDocument() async {
-    if (_selectedFile == null || _titleController.text.isEmpty || _selectedCategory == null) {
+    if (_selectedFile == null ||
+        _titleController.text.isEmpty ||
+        _selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("⚠️ Fill all fields and select a file")),
       );
@@ -75,7 +76,8 @@ class _UploadDocumentState extends State<UploadDocument> {
     final doc = await ApiService.uploadDocument(
       file: _selectedFile!,
       title: _titleController.text,
-      category: _selectedCategory == "Reports" ? "Lab Report" : _selectedCategory!,
+      category:
+          _selectedCategory == "Reports" ? "Lab Report" : _selectedCategory!,
       notes: _notesController.text,
       date: _selectedDate?.toIso8601String(),
     );
@@ -90,7 +92,6 @@ class _UploadDocumentState extends State<UploadDocument> {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -168,20 +169,42 @@ class _UploadDocumentState extends State<UploadDocument> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.attach_file, color: Colors.blue),
-                    onPressed: _pickFile,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[800]
+                          : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.attach_file, color: Colors.blue),
+                      onPressed: _pickFile,
+                    ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.camera_alt, color: Colors.blue),
-                    onPressed: _pickFromCamera,
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[800]
+                          : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.camera_alt, color: Colors.blue),
+                      onPressed: _pickFromCamera,
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _selectedFile != null
                           ? _selectedFile!.path.split('/').last
                           : "No file selected / photo captured",
-                      style: const TextStyle(color: Colors.black54),
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[400]
+                            : Colors.black54,
+                      ),
                     ),
                   ),
                 ],
@@ -203,8 +226,12 @@ class _UploadDocumentState extends State<UploadDocument> {
                   onPressed: _isUploading ? null : _uploadDocument,
                   style: ElevatedButton.styleFrom(
                     foregroundColor: Colors.blue,
-                    backgroundColor: Colors.white,
+                    backgroundColor:
+                        Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[800]
+                            : Colors.grey[100],
                     side: const BorderSide(color: Colors.blue),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
               )

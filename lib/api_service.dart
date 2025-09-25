@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'Document_model.dart';
 import 'package:http_parser/http_parser.dart';
+import 'fcm_service.dart';
 
 class ApiService {
   static const String baseUrl = "https://backend-medicalvault.onrender.com/api";
@@ -52,6 +53,9 @@ class ApiService {
           await prefs.setString("name", user?['name']?.toString() ?? "Patient");
           // ✅ Also store userData for dashboard compatibility
           await prefs.setString("userData", jsonEncode(user));
+
+          // Register FCM token after successful login
+          await FCMService().registerToken();
         }
 
         return data;
@@ -276,5 +280,137 @@ class ApiService {
       print("QR error: $e");
     }
     return null;
+  }
+
+  // ---------------- PROFILE MANAGEMENT ----------------
+  static Future<List<Map<String, dynamic>>> getLinkedProfiles() async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.get(
+        Uri.parse("${baseUrl}/profiles"),
+        headers: headers,
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return List<Map<String, dynamic>>.from(
+            data['data']['linkedProfiles'] ?? []);
+      } else {
+        print("Get profiles failed: ${res.body}");
+      }
+    } catch (e) {
+      print("Get profiles error: $e");
+    }
+    return [];
+  }
+
+  static Future<Map<String, dynamic>?> addSelfProfile(
+      String email, String password) async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.post(
+        Uri.parse("${baseUrl}/profiles/add-self"),
+        headers: {...headers, "Content-Type": "application/json"},
+        body: jsonEncode({"email": email, "password": password}),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data;
+      } else {
+        print("Add self profile failed: ${res.body}");
+        final errorData = jsonDecode(res.body);
+        throw Exception(errorData['message'] ?? 'Failed to add profile');
+      }
+    } catch (e) {
+      print("Add self profile error: $e");
+      rethrow;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> addOtherProfile({
+    required String name,
+    required String email,
+    required String mobile,
+    required String password,
+  }) async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.post(
+        Uri.parse("${baseUrl}/profiles/add-other"),
+        headers: {...headers, "Content-Type": "application/json"},
+        body: jsonEncode({
+          "name": name,
+          "email": email,
+          "mobile": mobile,
+          "password": password,
+        }),
+      );
+      if (res.statusCode == 201) {
+        final data = jsonDecode(res.body);
+        return data;
+      } else {
+        print("Add other profile failed: ${res.body}");
+        final errorData = jsonDecode(res.body);
+        throw Exception(errorData['message'] ?? 'Failed to create profile');
+      }
+    } catch (e) {
+      print("Add other profile error: $e");
+      rethrow;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> switchProfile(
+      String profileId, String password) async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.post(
+        Uri.parse("${baseUrl}/profiles/switch/$profileId"),
+        headers: {...headers, "Content-Type": "application/json"},
+        body: jsonEncode({"password": password}),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final token = data['data']['token'];
+        final user = data['data']['user'];
+
+        if (token != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString("authToken", token);
+          await prefs.setString("userId", user['id']?.toString() ?? "");
+          await prefs.setString("email", user['email']?.toString() ?? "");
+          await prefs.setString("name", user['name']?.toString() ?? "Patient");
+          await prefs.setString("userData", jsonEncode(user));
+          await prefs.setString(
+              "activeProfileId", user['id']?.toString() ?? "");
+        }
+
+        return data;
+      } else {
+        print("Switch profile failed: ${res.body}");
+        final errorData = jsonDecode(res.body);
+        throw Exception(errorData['message'] ?? 'Failed to switch profile');
+      }
+    } catch (e) {
+      print("Switch profile error: $e");
+      rethrow;
+    }
+  }
+
+  static Future<bool> removeLinkedProfile(String profileId) async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.delete(
+        Uri.parse("${baseUrl}/profiles/remove/$profileId"),
+        headers: headers,
+      );
+      if (res.statusCode == 200) {
+        return true;
+      } else {
+        print("Remove profile failed: ${res.body}");
+        return false;
+      }
+    } catch (e) {
+      print("Remove profile error: $e");
+      return false;
+    }
   }
 }

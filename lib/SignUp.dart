@@ -91,15 +91,44 @@ class _SignUpPageState extends State<SignUpPage> {
                 Center(
                   child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: Colors.blue[100],
-                        child: const Icon(Icons.shield,
-                            color: Colors.blue, size: 40),
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.asset(
+                            'assets/icon/app_icon.png',
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback to shield icon if image fails to load
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[100],
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Icon(
+                                  Icons.shield,
+                                  color: Colors.blue,
+                                  size: 40,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Create Your Health Vault',
+                        'Create Your Medical Vault',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontSize: 28,
@@ -108,7 +137,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Securely store and manage your health data.',
+                        'Securely store and manage your Medical data.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context)
                             .textTheme
@@ -218,7 +247,9 @@ class _SignUpPageState extends State<SignUpPage> {
                         elevation: 0,
                       ),
                       child: Text(
-                        _isLoading ? "Creating..." : "Create Account",
+                        _isLoading
+                            ? "Starting Your Journey With Us..."
+                            : "Create Account",
                         style:
                             const TextStyle(fontSize: 18, color: Colors.white),
                       ),
