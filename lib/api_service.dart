@@ -23,6 +23,64 @@ class ApiService {
     return _getToken();
   }
 
+  // ---------------- PASSWORD FLOWS ----------------
+  static Future<Map<String, dynamic>?> forgotPassword(String email) async {
+    try {
+      final res = await http.post(
+        Uri.parse("$authUrl/forgot-password"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": email}),
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data;
+      } else {
+        print("Forgot password failed: ${res.body}");
+        return {"success": false, "message": "Failed to send reset email"};
+      }
+    } catch (e) {
+      print("Forgot password error: $e");
+      return {"success": false, "message": "Network error"};
+    }
+  }
+
+  static Future<Map<String, dynamic>?> resetPassword(
+      {required String token, required String newPassword}) async {
+    try {
+      final res = await http.post(
+        Uri.parse("$authUrl/reset-password"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"token": token, "newPassword": newPassword}),
+      );
+
+      final data = jsonDecode(res.body);
+      return data;
+    } catch (e) {
+      print("Reset password error: $e");
+      return {"success": false, "message": "Network error"};
+    }
+  }
+
+  static Future<Map<String, dynamic>?> changePassword(
+      {required String oldPassword, required String newPassword}) async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.post(
+        Uri.parse("$authUrl/change-password"),
+        headers: {...headers, "Content-Type": "application/json"},
+        body: jsonEncode(
+            {"oldPassword": oldPassword, "newPassword": newPassword}),
+      );
+
+      final data = jsonDecode(res.body);
+      return data;
+    } catch (e) {
+      print("Change password error: $e");
+      return {"success": false, "message": "Network error"};
+    }
+  }
+
   static Future<Map<String, String>> _authHeaders() async {
     final token = await _getToken();
     return {

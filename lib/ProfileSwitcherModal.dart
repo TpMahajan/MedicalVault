@@ -256,6 +256,7 @@ class _ProfileSwitcherModalState extends State<ProfileSwitcherModal> {
   void _showSwitchDialog(Map<String, dynamic> profile) {
     final passwordController = TextEditingController();
     bool isPasswordLoading = false;
+    bool isPasswordVisible = false;
 
     showDialog(
       context: context,
@@ -279,8 +280,21 @@ class _ProfileSwitcherModalState extends State<ProfileSwitcherModal> {
                   labelStyle: Theme.of(context).textTheme.bodyMedium,
                   hintStyle: Theme.of(context).textTheme.bodyMedium,
                   border: OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      isPasswordVisible
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        isPasswordVisible = !isPasswordVisible;
+                      });
+                    },
+                  ),
                 ),
-                obscureText: true,
+                obscureText: !isPasswordVisible,
                 enabled: !isPasswordLoading,
               ),
             ],

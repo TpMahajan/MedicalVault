@@ -21,6 +21,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
 
   Future<void> _signupUser() async {
     if (!_formKey.currentState!.validate() || !_agreeToTerms) {
@@ -203,12 +204,26 @@ class _SignUpPageState extends State<SignUpPage> {
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _passwordController,
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.lock, color: Colors.grey),
+                        decoration: InputDecoration(
+                          prefixIcon:
+                              const Icon(Icons.lock, color: Colors.grey),
                           labelText: 'Password',
                           filled: true,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _isPasswordVisible
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isPasswordVisible = !_isPasswordVisible;
+                              });
+                            },
+                          ),
                         ),
-                        obscureText: true,
+                        obscureText: !_isPasswordVisible,
                         validator: (value) => value == null || value.length < 6
                             ? 'Password must be at least 6 characters'
                             : null,

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import '../api_service.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({super.key});
+class ChangePasswordScreen extends StatefulWidget {
+  const ChangePasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -261,29 +262,35 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _isLoading = true;
     });
 
-    try {
-      // TODO: Implement actual password update API call
-      await Future.delayed(const Duration(seconds: 2)); // Simulate API call
+    final result = await ApiService.changePassword(
+      oldPassword: _currentPasswordController.text,
+      newPassword: _newPasswordController.text,
+    );
 
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (result != null && result['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Password updated successfully'),
+          content: Text(result['message'] ?? 'Password updated successfully'),
           backgroundColor: Colors.green,
         ),
       );
-
+      // Clear controllers on success
+      _currentPasswordController.clear();
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
       Navigator.pop(context);
-    } catch (e) {
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to update password: $e'),
+          content: Text(result?['message'] ?? 'Failed to update password'),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 }

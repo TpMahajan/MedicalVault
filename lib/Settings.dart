@@ -98,7 +98,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SectionTitle("Switch Profile"),
           _buildSwitchProfileSection(),
           const SectionTitle("Security"),
-          _buildTile(Icons.lock, "Password", "", ForgotPasswordScreen()),
+          _buildTile(Icons.lock, "Password", "", ChangePasswordScreen()),
           const SectionTitle("QR & Sharing"),
           _buildTile(Icons.qr_code, "Regenerate QR", "", QRPage()),
           _buildTile(Icons.share, "Sharing Controls", "", QRPage()),
@@ -311,6 +311,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
     bool isLoading = false;
+    bool isPasswordVisible = false;
 
     showDialog(
       context: context,
@@ -331,11 +332,24 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 16),
               TextField(
                 controller: passwordController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: "Password",
                   hintText: "Enter password",
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      isPasswordVisible
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        isPasswordVisible = !isPasswordVisible;
+                      });
+                    },
+                  ),
                 ),
-                obscureText: true,
+                obscureText: !isPasswordVisible,
               ),
             ],
           ),
@@ -393,6 +407,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final mobileController = TextEditingController();
     final passwordController = TextEditingController();
     bool isLoading = false;
+    bool isPasswordVisible = false;
 
     showDialog(
       context: context,
@@ -431,11 +446,24 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: passwordController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: "Password",
                     hintText: "Enter password",
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        isPasswordVisible
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          isPasswordVisible = !isPasswordVisible;
+                        });
+                      },
+                    ),
                   ),
-                  obscureText: true,
+                  obscureText: !isPasswordVisible,
                 ),
               ],
             ),
@@ -494,6 +522,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void _showSwitchProfileDialog(Map<String, dynamic> profile) {
     final passwordController = TextEditingController();
     bool isLoading = false;
+    bool isPasswordVisible = false;
 
     showDialog(
       context: context,
@@ -507,11 +536,24 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 16),
               TextField(
                 controller: passwordController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: "Password",
                   hintText: "Enter password",
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      isPasswordVisible
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        isPasswordVisible = !isPasswordVisible;
+                      });
+                    },
+                  ),
                 ),
-                obscureText: true,
+                obscureText: !isPasswordVisible,
               ),
             ],
           ),

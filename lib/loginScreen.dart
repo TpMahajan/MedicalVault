@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_service.dart'; // 👈 Added
-import 'SettingPages/ChangePassword.dart'; // 👈 Added for forgot password
+import 'SettingPages/ForgotPasswordPage.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -222,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const ForgotPasswordScreen(),
+                          builder: (context) => const ForgotPasswordPage(),
                         ),
                       );
                     },

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lottie/lottie.dart';
 import 'dashboard1.dart';
 
 // Session Request Model
@@ -234,8 +235,13 @@ class _RequestsPageState extends State<RequestsPage> {
 
   Widget _buildBody() {
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
+      return Center(
+        child: Lottie.asset(
+          'assets/twodotloading.json',
+          width: 150,
+          height: 150,
+          fit: BoxFit.contain,
+        ),
       );
     }
 

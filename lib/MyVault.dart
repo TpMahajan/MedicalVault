@@ -569,8 +569,8 @@ class _MyVaultState extends State<MyVault> {
                 ? Center(
                     child: Lottie.asset(
                       'assets/twodotloading.json',
-                      width: 120,
-                      height: 120,
+                      width: 150,
+                      height: 150,
                     ),
                   )
                 : docs.isEmpty
