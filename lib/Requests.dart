@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
 import 'dashboard1.dart';
+import 'main.dart';
 
 // Session Request Model
 class SessionRequest {
@@ -198,6 +199,9 @@ class _RequestsPageState extends State<RequestsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Ensure status bar is configured
+    StatusBarHelper.setStatusBarStyle(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -229,7 +233,9 @@ class _RequestsPageState extends State<RequestsPage> {
           ),
         ],
       ),
-      body: _buildBody(),
+      body: SafeArea(
+        child: _buildBody(),
+      ),
     );
   }
 

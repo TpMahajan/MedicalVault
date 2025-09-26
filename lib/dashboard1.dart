@@ -8,6 +8,7 @@ import 'QR.dart';
 import 'Requests.dart';
 import 'Settings.dart';
 import 'ProfileSwitcherModal.dart';
+import 'main.dart';
 
 class Dashboard1 extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -32,6 +33,11 @@ class _Dashboard1State extends State<Dashboard1> {
     _pageController = PageController(initialPage: _currentIndex);
     _loadDocumentCounts();
     _loadLinkedProfiles();
+
+    // Set status bar style
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      StatusBarHelper.setStatusBarStyle(context);
+    });
   }
 
   @override
@@ -88,6 +94,9 @@ class _Dashboard1State extends State<Dashboard1> {
 
   @override
   Widget build(BuildContext context) {
+    // Ensure status bar is configured
+    StatusBarHelper.setStatusBarStyle(context);
+
     final passedName = (widget.userData['name'] ?? "").toString();
 
     return FutureBuilder<String?>(

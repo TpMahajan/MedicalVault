@@ -11,6 +11,7 @@ import 'package:open_file/open_file.dart';
 import 'Document_model.dart';
 import 'UploadDocument.dart';
 import 'api_service.dart';
+import 'main.dart';
 
 // ================= DOCUMENT DETAIL PAGE =================
 class DocumentDetailPage extends StatelessWidget {
@@ -484,182 +485,190 @@ class _MyVaultState extends State<MyVault> {
 
   @override
   Widget build(BuildContext context) {
+    // Ensure status bar is configured
+    StatusBarHelper.setStatusBarStyle(context);
+
     final docs = _filterAndSortDocuments();
 
     return Scaffold(
-      body: Column(
-        children: [
-          // 🔍 Search Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search',
-                prefixIcon: const Icon(Icons.search),
-                fillColor: Theme.of(context).cardColor,
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide.none,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // 🔍 Search Bar
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search',
+                  prefixIcon: const Icon(Icons.search),
+                  fillColor: Theme.of(context).cardColor,
+                  filled: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // 🏷️ Categories
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Row(
-              children: _categories.map((cat) {
-                final isSelected = _selectedCategory == cat;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: ChoiceChip(
-                    label: Text(cat),
-                    selected: isSelected,
-                    onSelected: (_) {
-                      setState(() {
-                        _selectedCategory = cat;
-                      });
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-
-          // ⏳ Sort Dropdown
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("Sort",
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.bold)),
-                SizedBox(
-                  width: 160,
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    value: _selectedSort,
-                    items: _sortOptions
-                        .map((option) => DropdownMenuItem(
-                              value: option,
-                              child: Text(option),
-                            ))
-                        .toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _selectedSort = val);
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 📂 Documents List
-          Expanded(
-            child: _isLoading
-                ? Center(
-                    child: Lottie.asset(
-                      'assets/twodotloading.json',
-                      width: 150,
-                      height: 150,
-                    ),
-                  )
-                : docs.isEmpty
-                    ? const Center(child: Text("No documents found"))
-                    : ListView.builder(
-                        itemCount: docs.length,
-                        itemBuilder: (context, index) {
-                          final doc = docs[index];
-                          return Card(
-                            margin: const EdgeInsets.symmetric(
-                                vertical: 6, horizontal: 8),
-                            child: ListTile(
-                              leading: const Icon(Icons.insert_drive_file,
-                                  color: Colors.blue),
-                              title: Text(doc.title ?? "Untitled"),
-                              subtitle: Text("${doc.category} • ${doc.date}",
-                                  style: Theme.of(context).textTheme.bodySmall),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.remove_red_eye,
-                                        color: Colors.green),
-                                    onPressed: () => _openFile(doc),
-                                    tooltip: "Preview",
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.download,
-                                        color: Colors.blue),
-                                    onPressed: () => _downloadFile(doc),
-                                    tooltip: "Download",
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete,
-                                        color: Colors.red),
-                                    onPressed: () => _deleteFile(doc),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-          ),
-
-          // 📤 Upload Button
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF42A5F5),
-                    Color(0xFF26C6DA),
-                    Color(0xFF80DEEA)
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => UploadDocument(
-                        userId: widget.userId,
-                      ),
+            // 🏷️ Categories
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Row(
+                children: _categories.map((cat) {
+                  final isSelected = _selectedCategory == cat;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: ChoiceChip(
+                      label: Text(cat),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        setState(() {
+                          _selectedCategory = cat;
+                        });
+                      },
                     ),
                   );
-                  _loadDocumentsFromAPI();
-                },
-                icon: const Icon(Icons.upload, color: Colors.white),
-                label: const Text('Upload Document',
-                    style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                }).toList(),
+              ),
+            ),
+
+            // ⏳ Sort Dropdown
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("Sort",
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  SizedBox(
+                    width: 160,
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: _selectedSort,
+                      items: _sortOptions
+                          .map((option) => DropdownMenuItem(
+                                value: option,
+                                child: Text(option),
+                              ))
+                          .toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _selectedSort = val);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 📂 Documents List
+            Expanded(
+              child: _isLoading
+                  ? Center(
+                      child: Lottie.asset(
+                        'assets/twodotloading.json',
+                        width: 150,
+                        height: 150,
+                      ),
+                    )
+                  : docs.isEmpty
+                      ? const Center(child: Text("No documents found"))
+                      : ListView.builder(
+                          itemCount: docs.length,
+                          itemBuilder: (context, index) {
+                            final doc = docs[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(
+                                  vertical: 6, horizontal: 8),
+                              child: ListTile(
+                                leading: const Icon(Icons.insert_drive_file,
+                                    color: Colors.blue),
+                                title: Text(doc.title ?? "Untitled"),
+                                subtitle: Text("${doc.category} • ${doc.date}",
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.remove_red_eye,
+                                          color: Colors.green),
+                                      onPressed: () => _openFile(doc),
+                                      tooltip: "Preview",
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.download,
+                                          color: Colors.blue),
+                                      onPressed: () => _downloadFile(doc),
+                                      tooltip: "Download",
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete,
+                                          color: Colors.red),
+                                      onPressed: () => _deleteFile(doc),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+
+            // 📤 Upload Button
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF42A5F5),
+                      Color(0xFF26C6DA),
+                      Color(0xFF80DEEA)
+                    ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => UploadDocument(
+                          userId: widget.userId,
+                        ),
+                      ),
+                    );
+                    _loadDocumentsFromAPI();
+                  },
+                  icon: const Icon(Icons.upload, color: Colors.white),
+                  label: const Text('Upload Document',
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -57,6 +57,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Ensure status bar is configured
+    StatusBarHelper.setStatusBarStyle(context);
+
     // 👇 safe values nikale
     final String name = widget.userData["name"]?.toString() ?? "Your Name";
     final String email =
@@ -66,70 +69,73 @@ class _SettingsPageState extends State<SettingsPage> {
     final String dob = widget.userData["dateOfBirth"]?.toString() ?? "N/A";
 
     return Scaffold(
-      body: ListView(
-        padding: const EdgeInsets.all(10),
-        children: [
-          const SectionTitle("My Profile"),
-          _buildTile(
-            Icons.person,
-            "Personal Details",
-            "View and edit your personal details",
-            ProfileName(
-              userData: {
-                "name": name,
-                "email": email,
-                "mobile": mobile,
-                "aadhaar": aadhaar,
-                "dateOfBirth": dob,
-                "age": widget.userData["age"],
-                "gender": widget.userData["gender"],
-                "bloodType": widget.userData["bloodType"],
-                "height": widget.userData["height"],
-                "weight": widget.userData["weight"],
-                "lastVisit": widget.userData["lastVisit"],
-                "nextAppointment": widget.userData["nextAppointment"],
-                "emergencyContact": widget.userData["emergencyContact"],
-                "medicalHistory": widget.userData["medicalHistory"] ?? [],
-                "medications": widget.userData["medications"] ?? [],
-                "medicalRecords": widget.userData["medicalRecords"] ?? [],
-              },
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(10),
+          children: [
+            const SectionTitle("My Profile"),
+            _buildTile(
+              Icons.person,
+              "Personal Details",
+              "View and edit your personal details",
+              ProfileName(
+                userData: {
+                  "name": name,
+                  "email": email,
+                  "mobile": mobile,
+                  "aadhaar": aadhaar,
+                  "dateOfBirth": dob,
+                  "age": widget.userData["age"],
+                  "gender": widget.userData["gender"],
+                  "bloodType": widget.userData["bloodType"],
+                  "height": widget.userData["height"],
+                  "weight": widget.userData["weight"],
+                  "lastVisit": widget.userData["lastVisit"],
+                  "nextAppointment": widget.userData["nextAppointment"],
+                  "emergencyContact": widget.userData["emergencyContact"],
+                  "medicalHistory": widget.userData["medicalHistory"] ?? [],
+                  "medications": widget.userData["medications"] ?? [],
+                  "medicalRecords": widget.userData["medicalRecords"] ?? [],
+                },
+              ),
             ),
-          ),
-          const SectionTitle("Switch Profile"),
-          _buildSwitchProfileSection(),
-          const SectionTitle("Security"),
-          _buildTile(Icons.lock, "Password", "", ChangePasswordScreen()),
-          const SectionTitle("QR & Sharing"),
-          _buildTile(Icons.qr_code, "Regenerate QR", "", QRPage()),
-          _buildTile(Icons.share, "Sharing Controls", "", QRPage()),
-          const SectionTitle("Switch Themes"),
-          _buildDarkModeRow(context),
-          const SectionTitle("Notifications"),
-          _buildSwitchTile(
-              "Approvals", "Receive notifications for approvals", approvals,
-              (val) {
-            setState(() => approvals = val);
-          }),
-          _buildSwitchTile(
-              "Reminders", "Receive notifications for reminders", reminders,
-              (val) {
-            setState(() => reminders = val);
-          }),
-          _buildSwitchTile(
-              "System", "Receive system notifications", systemNotifs, (val) {
-            setState(() => systemNotifs = val);
-          }),
-          const SectionTitle("Privacy & Terms"),
-          _buildTile(Icons.privacy_tip, "Privacy Policy", "", PrivacyPolicy()),
-          _buildTile(
-              Icons.description, "Terms of Service", "", TermsOfService()),
-          const SectionTitle("Help & Support"),
-          _buildTile(Icons.help_outline, "FAQs", "", FAQs()),
-          _buildTile(Icons.support_agent, "Contact Support", "",
-              ContactSupportScreen()),
-          const SectionTitle("Account"),
-          _buildTile(Icons.logout, "Logout", "", LoginScreen()),
-        ],
+            const SectionTitle("Switch Profile"),
+            _buildSwitchProfileSection(),
+            const SectionTitle("Security"),
+            _buildTile(Icons.lock, "Password", "", ChangePasswordScreen()),
+            const SectionTitle("QR & Sharing"),
+            _buildTile(Icons.qr_code, "Regenerate QR", "", QRPage()),
+            _buildTile(Icons.share, "Sharing Controls", "", QRPage()),
+            const SectionTitle("Switch Themes"),
+            _buildDarkModeRow(context),
+            const SectionTitle("Notifications"),
+            _buildSwitchTile(
+                "Approvals", "Receive notifications for approvals", approvals,
+                (val) {
+              setState(() => approvals = val);
+            }),
+            _buildSwitchTile(
+                "Reminders", "Receive notifications for reminders", reminders,
+                (val) {
+              setState(() => reminders = val);
+            }),
+            _buildSwitchTile(
+                "System", "Receive system notifications", systemNotifs, (val) {
+              setState(() => systemNotifs = val);
+            }),
+            const SectionTitle("Privacy & Terms"),
+            _buildTile(
+                Icons.privacy_tip, "Privacy Policy", "", PrivacyPolicy()),
+            _buildTile(
+                Icons.description, "Terms of Service", "", TermsOfService()),
+            const SectionTitle("Help & Support"),
+            _buildTile(Icons.help_outline, "FAQs", "", FAQs()),
+            _buildTile(Icons.support_agent, "Contact Support", "",
+                ContactSupportScreen()),
+            const SectionTitle("Account"),
+            _buildTile(Icons.logout, "Logout", "", LoginScreen()),
+          ],
+        ),
       ),
     );
   }

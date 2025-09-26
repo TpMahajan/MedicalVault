@@ -9,6 +9,7 @@ import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import 'Document_model.dart';
 import 'api_service.dart';
+import 'main.dart';
 
 class CategoryVaultPage extends StatefulWidget {
   final String category;
@@ -342,6 +343,9 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
   // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
+    // Ensure status bar is configured
+    StatusBarHelper.setStatusBarStyle(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.category),
@@ -349,152 +353,158 @@ class _CategoryVaultPageState extends State<CategoryVaultPage> {
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadFiles),
         ],
       ),
-      body: _isLoading
-          ? Center(
-              child: Lottie.asset(
-                "assets/twodotloading.json",
-                width: 150,
-                height: 150,
-              ),
-            )
-          : Column(
-              children: [
-                // Time filter dropdown
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(Icons.filter_list,
-                          color: Theme.of(context).iconTheme.color),
-                      const SizedBox(width: 8),
-                      Text('Filter by time:',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  )),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: selectedTimeFilter,
-                          decoration: InputDecoration(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
+      body: SafeArea(
+        child: _isLoading
+            ? Center(
+                child: Lottie.asset(
+                  "assets/twodotloading.json",
+                  width: 150,
+                  height: 150,
+                ),
+              )
+            : Column(
+                children: [
+                  // Time filter dropdown
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.filter_list,
+                            color: Theme.of(context).iconTheme.color),
+                        const SizedBox(width: 8),
+                        Text('Filter by time:',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                )),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: selectedTimeFilter,
+                            decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                    color: Theme.of(context).dividerColor),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                    color: Theme.of(context).dividerColor),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                    color:
+                                        Theme.of(context).colorScheme.primary),
+                              ),
                             ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(
-                                  color: Theme.of(context).dividerColor),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(
-                                  color: Theme.of(context).dividerColor),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(
-                                  color: Theme.of(context).colorScheme.primary),
-                            ),
+                            items: timeFilterOptions.map((String option) {
+                              return DropdownMenuItem<String>(
+                                value: option,
+                                child: Text(option),
+                              );
+                            }).toList(),
+                            onChanged: _onFilterChanged,
                           ),
-                          items: timeFilterOptions.map((String option) {
-                            return DropdownMenuItem<String>(
-                              value: option,
-                              child: Text(option),
-                            );
-                          }).toList(),
-                          onChanged: _onFilterChanged,
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text('${filteredFiles.length} of ${files.length}',
-                          style: Theme.of(context).textTheme.bodySmall),
-                    ],
+                        const SizedBox(width: 8),
+                        Text('${filteredFiles.length} of ${files.length}',
+                            style: Theme.of(context).textTheme.bodySmall),
+                      ],
+                    ),
                   ),
-                ),
 
-                // Document list
-                Expanded(
-                  child: filteredFiles.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.folder_open,
-                                  size: 64,
-                                  color: Theme.of(context).disabledColor),
-                              const SizedBox(height: 16),
-                              Text(
-                                files.isEmpty
-                                    ? "No documents uploaded yet"
-                                    : "No documents found for selected time period",
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
-                                    ?.copyWith(
-                                        fontSize: 18,
-                                        color: Theme.of(context).hintColor),
-                              ),
-                              Text(
-                                files.isEmpty
-                                    ? "Upload documents to see them here"
-                                    : "Try selecting a different time filter",
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                        color: Theme.of(context).hintColor),
-                              ),
-                            ],
+                  // Document list
+                  Expanded(
+                    child: filteredFiles.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.folder_open,
+                                    size: 64,
+                                    color: Theme.of(context).disabledColor),
+                                const SizedBox(height: 16),
+                                Text(
+                                  files.isEmpty
+                                      ? "No documents uploaded yet"
+                                      : "No documents found for selected time period",
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.copyWith(
+                                          fontSize: 18,
+                                          color: Theme.of(context).hintColor),
+                                ),
+                                Text(
+                                  files.isEmpty
+                                      ? "Upload documents to see them here"
+                                      : "Try selecting a different time filter",
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                          color: Theme.of(context).hintColor),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: filteredFiles.length,
+                            itemBuilder: (context, index) {
+                              final file = filteredFiles[index];
+                              return Card(
+                                margin: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                                child: ListTile(
+                                  leading: _buildThumbnail(file),
+                                  title: Text(file.title ?? "Untitled"),
+                                  subtitle: Text(
+                                    'Uploaded: ${file.date ?? ''}',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                  trailing: Wrap(
+                                    spacing: 8,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.remove_red_eye,
+                                            color: Colors.blue),
+                                        onPressed: () => _openFile(file),
+                                        tooltip: "Preview",
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.download,
+                                            color: Colors.green),
+                                        onPressed: () => _downloadFile(file),
+                                        tooltip: "Download",
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete,
+                                            color: Colors.red),
+                                        onPressed: () => _deleteFile(file),
+                                        tooltip: "Delete",
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        )
-                      : ListView.builder(
-                          itemCount: filteredFiles.length,
-                          itemBuilder: (context, index) {
-                            final file = filteredFiles[index];
-                            return Card(
-                              margin: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                              child: ListTile(
-                                leading: _buildThumbnail(file),
-                                title: Text(file.title ?? "Untitled"),
-                                subtitle: Text(
-                                  'Uploaded: ${file.date ?? ''}',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                                trailing: Wrap(
-                                  spacing: 8,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.remove_red_eye,
-                                          color: Colors.blue),
-                                      onPressed: () => _openFile(file),
-                                      tooltip: "Preview",
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.download,
-                                          color: Colors.green),
-                                      onPressed: () => _downloadFile(file),
-                                      tooltip: "Download",
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete,
-                                          color: Colors.red),
-                                      onPressed: () => _deleteFile(file),
-                                      tooltip: "Delete",
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 }

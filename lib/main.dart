@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hello/firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +12,11 @@ import 'fcm_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Configure system UI for status bar visibility
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
+      overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom]);
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -22,6 +28,27 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   final themeMode = await ThemeProvider.loadThemeMode();
+
+  // Set initial status bar style
+  if (themeMode == ThemeMode.dark) {
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+    );
+  } else {
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Color(0x80000000), // Semi-transparent dark background
+        statusBarIconBrightness:
+            Brightness.light, // Light icons on dark background
+        statusBarBrightness: Brightness.dark,
+      ),
+    );
+  }
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeProvider(themeMode),
@@ -35,15 +62,92 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Health Vault',
-      theme: AppThemes.lightTheme,
-      darkTheme: AppThemes.darkTheme,
-      themeMode: themeProvider.themeMode,
-      home: const AuthWrapper(),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        // Set status bar style based on current theme
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _setStatusBarStyle(themeProvider.themeMode);
+        });
+
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Health Vault',
+          theme: AppThemes.lightTheme,
+          darkTheme: AppThemes.darkTheme,
+          themeMode: themeProvider.themeMode,
+          home: const AuthWrapper(),
+        );
+      },
     );
+  }
+
+  void _setStatusBarStyle(ThemeMode themeMode) {
+    if (themeMode == ThemeMode.dark) {
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
+      );
+    } else {
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+        ),
+      );
+    }
+  }
+}
+
+// Helper class for status bar management
+class StatusBarHelper {
+  static void setStatusBarStyle(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    if (brightness == Brightness.dark) {
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
+      );
+    } else {
+      // For light mode, use a semi-transparent dark background to ensure light icons are visible
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Color(0x80000000), // Semi-transparent dark background
+          statusBarIconBrightness:
+              Brightness.light, // Light icons on dark background
+          statusBarBrightness: Brightness.dark,
+        ),
+      );
+    }
+  }
+
+  // Alternative method for better visibility in light mode
+  static void setStatusBarStyleAlternative(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    if (brightness == Brightness.dark) {
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
+      );
+    } else {
+      // Alternative: Use a more opaque background for better contrast
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Color(0xCC000000), // More opaque dark background
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
+      );
+    }
   }
 }
 
@@ -53,7 +157,30 @@ class ThemeProvider extends ChangeNotifier {
   ThemeMode _themeMode;
   ThemeMode get themeMode => _themeMode;
 
-  ThemeProvider(this._themeMode);
+  ThemeProvider(this._themeMode) {
+    // Set status bar style when provider is created
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_themeMode == ThemeMode.dark) {
+        SystemChrome.setSystemUIOverlayStyle(
+          const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+          ),
+        );
+      } else {
+        SystemChrome.setSystemUIOverlayStyle(
+          const SystemUiOverlayStyle(
+            statusBarColor:
+                Color(0x80000000), // Semi-transparent dark background
+            statusBarIconBrightness:
+                Brightness.light, // Light icons on dark background
+            statusBarBrightness: Brightness.dark,
+          ),
+        );
+      }
+    });
+  }
 
   static Future<ThemeMode> loadThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
@@ -68,6 +195,27 @@ class ThemeProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
         _themeKey, _themeMode == ThemeMode.dark ? 'dark' : 'light');
+
+    // Update status bar style when theme changes
+    if (_themeMode == ThemeMode.dark) {
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
+      );
+    } else {
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Color(0x80000000), // Semi-transparent dark background
+          statusBarIconBrightness:
+              Brightness.light, // Light icons on dark background
+          statusBarBrightness: Brightness.dark,
+        ),
+      );
+    }
+
     notifyListeners();
   }
 }

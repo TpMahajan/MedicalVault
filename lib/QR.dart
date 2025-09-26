@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 import 'HowQrAcessWorks.dart';
 import 'api_service.dart';
 import 'dashboard1.dart';
+import 'main.dart';
 
 /// 👉 Backend base URL (no trailing slash)
 const String kApiBase = 'https://backend-medicalvault.onrender.com';
@@ -33,6 +34,11 @@ class _QRPageState extends State<QRPage> {
   void initState() {
     super.initState();
     _regenerateQR(); // auto-generate on open
+
+    // Set status bar style
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      StatusBarHelper.setStatusBarStyle(context);
+    });
   }
 
   // Removed unused _readSessionToken
