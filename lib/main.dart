@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'SignUp.dart';
 import 'loginScreen.dart';
 import 'fcm_service.dart';
+import 'global_notification_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,7 +76,7 @@ class MyApp extends StatelessWidget {
           theme: AppThemes.lightTheme,
           darkTheme: AppThemes.darkTheme,
           themeMode: themeProvider.themeMode,
-          home: const AuthWrapper(),
+          home: const NotificationWrapper(),
         );
       },
     );
@@ -443,6 +444,29 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         ),
       ),
     );
+  }
+}
+
+class NotificationWrapper extends StatefulWidget {
+  const NotificationWrapper({super.key});
+
+  @override
+  State<NotificationWrapper> createState() => _NotificationWrapperState();
+}
+
+class _NotificationWrapperState extends State<NotificationWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    // Set the global context for notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      GlobalNotificationHandler.setGlobalContext(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const AuthWrapper();
   }
 }
 

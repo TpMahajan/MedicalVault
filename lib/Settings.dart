@@ -14,6 +14,8 @@ import 'SettingPages/TermsOfServicesPage.dart';
 import 'loginScreen.dart';
 import 'api_service.dart';
 import 'dashboard1.dart';
+import 'notification_settings_service.dart';
+import 'logout_service.dart';
 
 class SettingsPage extends StatefulWidget {
   final Map<String, dynamic> userData; // 👈 full user data map
@@ -25,16 +27,22 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  bool approvals = false;
-  bool reminders = false;
-  bool systemNotifs = false;
+  bool sessionExpiring = true;
+  bool reminders = true;
+  bool systemNotifs = true;
   List<Map<String, dynamic>> linkedProfiles = [];
   bool isLoadingProfiles = false;
+  bool isLoadingSettings = false;
+
+  final NotificationSettingsService _settingsService =
+      NotificationSettingsService();
+  final LogoutService _logoutService = LogoutService();
 
   @override
   void initState() {
     super.initState();
     _loadLinkedProfiles();
+    _loadNotificationSettings();
   }
 
   Future<void> _loadLinkedProfiles() async {
@@ -52,6 +60,125 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() {
         isLoadingProfiles = false;
       });
+    }
+  }
+
+  Future<void> _loadNotificationSettings() async {
+    setState(() {
+      isLoadingSettings = true;
+    });
+    try {
+      final settings = await _settingsService.getNotificationSettings();
+      setState(() {
+        sessionExpiring = settings['sessionExpiring'] ?? true;
+        reminders = settings['reminders'] ?? true;
+        systemNotifs = settings['system'] ?? true;
+      });
+    } catch (e) {
+      print("Error loading notification settings: $e");
+    } finally {
+      setState(() {
+        isLoadingSettings = false;
+      });
+    }
+  }
+
+  Future<void> _updateNotificationSetting(String type, bool value) async {
+    try {
+      await _settingsService.updateNotificationSetting(type, value);
+      setState(() {
+        switch (type) {
+          case 'sessionExpiring':
+            sessionExpiring = value;
+            break;
+          case 'reminders':
+            reminders = value;
+            break;
+          case 'system':
+            systemNotifs = value;
+            break;
+        }
+      });
+
+      // Show confirmation message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              "${type == 'sessionExpiring' ? 'Session Expiring' : type == 'reminders' ? 'Reminders' : 'System'} notifications ${value ? 'enabled' : 'disabled'}"),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      print("Error updating notification setting: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to update notification setting: $e")),
+      );
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    // Show confirmation dialog
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true) {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      try {
+        // Clear all session data
+        await _logoutService.logout();
+
+        // Close loading dialog
+        Navigator.of(context).pop();
+
+        // Navigate to login screen and clear entire navigation stack
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false, // Remove all previous routes
+        );
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Logged out successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        // Close loading dialog
+        Navigator.of(context).pop();
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Logout failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -109,20 +236,37 @@ class _SettingsPageState extends State<SettingsPage> {
             const SectionTitle("Switch Themes"),
             _buildDarkModeRow(context),
             const SectionTitle("Notifications"),
-            _buildSwitchTile(
-                "Approvals", "Receive notifications for approvals", approvals,
-                (val) {
-              setState(() => approvals = val);
-            }),
-            _buildSwitchTile(
-                "Reminders", "Receive notifications for reminders", reminders,
-                (val) {
-              setState(() => reminders = val);
-            }),
-            _buildSwitchTile(
-                "System", "Receive system notifications", systemNotifs, (val) {
-              setState(() => systemNotifs = val);
-            }),
+            if (isLoadingSettings)
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else ...[
+              _buildNotificationSwitchTile(
+                "Session Expiring",
+                "Get notified when your session with doctor is about to expire (last 15 seconds)",
+                sessionExpiring,
+                Icons.timer,
+                Colors.orange,
+                (val) => _updateNotificationSetting('sessionExpiring', val),
+              ),
+              _buildNotificationSwitchTile(
+                "Reminders",
+                "Receive appointment reminders and other important notifications",
+                reminders,
+                Icons.notifications,
+                Colors.blue,
+                (val) => _updateNotificationSetting('reminders', val),
+              ),
+              _buildNotificationSwitchTile(
+                "System",
+                "Get system updates, advertisements, and instruction notifications",
+                systemNotifs,
+                Icons.info,
+                Colors.green,
+                (val) => _updateNotificationSetting('system', val),
+              ),
+            ],
             const SectionTitle("Privacy & Terms"),
             _buildTile(
                 Icons.privacy_tip, "Privacy Policy", "", PrivacyPolicy()),
@@ -133,7 +277,7 @@ class _SettingsPageState extends State<SettingsPage> {
             _buildTile(Icons.support_agent, "Contact Support", "",
                 ContactSupportScreen()),
             const SectionTitle("Account"),
-            _buildTile(Icons.logout, "Logout", "", LoginScreen()),
+            _buildLogoutTile(),
           ],
         ),
       ),
@@ -157,14 +301,72 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSwitchTile(
-      String title, String subtitle, bool value, Function(bool) onChanged) {
-    return SwitchListTile(
-      title: Text(title),
-      subtitle: Text(subtitle,
-          style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      value: value,
-      onChanged: onChanged,
+  Widget _buildNotificationSwitchTile(
+    String title,
+    String subtitle,
+    bool value,
+    IconData icon,
+    Color iconColor,
+    Function(bool) onChanged,
+  ) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color:
+              value ? iconColor.withOpacity(0.3) : Colors.grey.withOpacity(0.2),
+          width: value ? 2 : 1,
+        ),
+        boxShadow: value
+            ? [
+                BoxShadow(
+                  color: iconColor.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
+      ),
+      child: SwitchListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        secondary: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: value
+                ? iconColor.withOpacity(0.1)
+                : Colors.grey.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: value ? iconColor : Colors.grey,
+            size: 24,
+          ),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: value
+                ? iconColor
+                : Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+        value: value,
+        onChanged: onChanged,
+        activeColor: iconColor,
+        inactiveThumbColor: Colors.grey[400],
+        inactiveTrackColor: Colors.grey[200],
+      ),
     );
   }
 
@@ -664,6 +866,16 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLogoutTile() {
+    return ListTile(
+      leading: Icon(Icons.logout, color: Colors.red),
+      title: const Text('Logout'),
+      subtitle: const Text('Sign out of your account'),
+      onTap: _handleLogout,
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
     );
   }
 }

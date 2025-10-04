@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'global_notification_handler.dart';
 
 class FCMService {
   static const String baseUrl = "https://backend-medicalvault.onrender.com/api";
@@ -13,6 +14,8 @@ class FCMService {
   FCMService._internal();
 
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  final GlobalNotificationHandler _notificationHandler =
+      GlobalNotificationHandler();
 
   // Initialize FCM and request permissions
   Future<void> initialize() async {
@@ -127,8 +130,8 @@ class FCMService {
       print('Data: ${message.data}');
     }
 
-    // You can show a local notification or in-app notification here
-    // For now, we'll just log it
+    // Handle the notification based on user settings
+    _handleNotificationMessage(message);
   }
 
   // Handle background messages (when app is in background)
@@ -140,8 +143,8 @@ class FCMService {
       print('Data: ${message.data}');
     }
 
-    // Handle the notification data here
-    _processNotificationData(message.data);
+    // Handle the notification based on user settings
+    _handleNotificationMessage(message);
   }
 
   // Handle terminated app messages
@@ -154,38 +157,14 @@ class FCMService {
       print('Data: ${message.data}');
     }
 
-    // Handle the notification data here
-    _processNotificationData(message.data);
+    // Handle the notification based on user settings
+    _handleNotificationMessage(message);
   }
 
-  // Process notification data based on type
-  void _processNotificationData(Map<String, dynamic> data) {
-    final type = data['type'];
-
-    switch (type) {
-      case 'SESSION_REQUEST':
-        if (kDebugMode) {
-          print('Processing session request notification');
-        }
-        // Navigate to session requests page or show dialog
-        break;
-      case 'SESSION_RESPONSE':
-        if (kDebugMode) {
-          print('Processing session response notification');
-        }
-        // Handle session response
-        break;
-      case 'FILE_UPLOAD':
-        if (kDebugMode) {
-          print('Processing file upload notification');
-        }
-        // Navigate to documents page or refresh
-        break;
-      default:
-        if (kDebugMode) {
-          print('Unknown notification type: $type');
-        }
-    }
+  // Handle notification message based on user settings
+  Future<void> _handleNotificationMessage(RemoteMessage message) async {
+    // Use the global notification handler
+    await _notificationHandler.handleFCMNotification(message);
   }
 
   // Subscribe to topic (optional - for broadcast notifications)

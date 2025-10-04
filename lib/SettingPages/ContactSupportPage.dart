@@ -13,7 +13,8 @@ class MyApp extends StatelessWidget {
       title: 'Contact Support',
       theme: ThemeData(
         primarySwatch: Colors.green,
-        scaffoldBackgroundColor: const Color(0xFFE0F7FA), // Light cyan background
+        scaffoldBackgroundColor:
+            const Color(0xFFE0F7FA), // Light cyan background
       ),
       home: const ContactSupportScreen(),
     );
@@ -29,7 +30,7 @@ class ContactSupportScreen extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: ()  => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text('Contact Support'),
         backgroundColor: Colors.transparent,
@@ -51,13 +52,14 @@ class ContactSupportScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'support@healthapp.com',
+                  'medicalvault@aially.in',
                   style: TextStyle(fontSize: 16),
                 ),
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFE0B2), // Peach color for icon background
+                    color: const Color(
+                        0xFFFFE0B2), // Peach color for icon background
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -84,7 +86,8 @@ class ContactSupportScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFE0B2), // Peach color for icon background
+                    color: const Color(
+                        0xFFFFE0B2), // Peach color for icon background
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -96,14 +99,14 @@ class ContactSupportScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             // Visit Help Center
-            const Text(
-              'Visit our Help Center',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.green,
-                decoration: TextDecoration.underline,
-              ),
-            ),
+            // const Text(
+            //   'Visit our Help Center',
+            //   style: TextStyle(
+            //     fontSize: 16,
+            //     color: Colors.green,
+            //     decoration: TextDecoration.underline,
+            //   ),
+            // ),
           ],
         ),
       ),

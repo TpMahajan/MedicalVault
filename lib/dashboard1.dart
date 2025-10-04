@@ -109,7 +109,12 @@ class _Dashboard1State extends State<Dashboard1> {
           child: Scaffold(
             body: PageView(
               controller: _pageController,
-              onPageChanged: (index) {},
+              physics: const ClampingScrollPhysics(),
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
               children: [
                 // 🏠 Dashboard tab
                 RefreshIndicator(

@@ -124,8 +124,8 @@ class _ProfileNameState extends State<ProfileName> {
         body: Center(
           child: Lottie.asset(
             'assets/twodotloading.json',
-            width: 120,
-            height: 120,
+            width: 150,
+            height: 150,
           ),
         ),
       );
